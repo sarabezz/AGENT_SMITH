@@ -5,9 +5,9 @@ SYSTEM_PROMPT = """You are an expert Python programmer solving coding tasks step
 
 On each turn, respond in this exact format:
 Thought: <1-3 short sentences about what to do next>
-````````python
+`````````python
 <python code to run>
-```````<end_code>
+````````<end_code>
 
 Rules:
 - Write exactly ONE code block per turn, then stop. Never write the Observation yourself.
@@ -26,20 +26,22 @@ Tests:
 assert max_num([1, 5, 3]) == 5
 
 Thought: Sort the list and take the last element, then run the test.
-``````python
+```````python
 def max_num(lst):
     return sorted(lst)[-1]
 
 assert max_num([1, 5, 3]) == 5
 print("All tests passed")
-`````<end_code>
+``````<end_code>
 Observation: All tests passed
 
 Thought: The tests pass, I submit the function.
-````python
+`````python
 final_answer(max_num)
-```<end_code>
+````<end_code>
 """
+
+FINAL_REMINDER = "Reply with a one-sentence Thought, then the code block."
 
 
 def build_task_prompt(task: MBPPTaskInput) -> str:
@@ -53,4 +55,6 @@ def build_task_prompt(task: MBPPTaskInput) -> str:
         lines.extend(task.test_imports)
     lines.append("Tests:")
     lines.extend(task.test_list)
+    lines.append("")
+    lines.append(FINAL_REMINDER)
     return "\n".join(lines)

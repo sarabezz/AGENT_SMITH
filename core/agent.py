@@ -17,15 +17,16 @@ NO_CODE_MESSAGE = (
 NO_OUTPUT_MESSAGE = "(code executed successfully, no output)"
 UNCLOSED_BLOCK_NOTE = ("Your ```python block was not closed; "
                        "the code was executed anyway, up to the end of your reply.")
+TRUNCATED_PLACEHOLDER = "[My previous reply was too long and was cut off.]"
 
 
 @dataclass
 class AgentLimits:
-    """Hard limits for one task. Defaults: MBPP limits from the moulinette README."""
+    """Hard limits for one task. Defaults: MBPP limits checked by the moulinette."""
     max_iterations: int = 10
-    max_input_tokens: int = 4_000
-    max_output_tokens: int = 1_000
-    max_time_seconds: float = 60.0
+    max_input_tokens: int = 6_000
+    max_output_tokens: int = 1_500
+    max_time_seconds: float = 120.0
 
 
 def estimate_tokens(text: str) -> int:
@@ -38,8 +39,9 @@ def build_observation(extracted: ExtractedCode | None, output: str,
     """Turn what happened into the message the LLM will read. It must never have to guess."""
     notes: list[str] = []
     if reply.was_truncated:
-        notes.append(f"Your reply was cut off because it reached the limit of {max_tokens} tokens. "
-                     "Keep the Thought short and write code without comments.")
+        notes.append(f"Your previous reply was cut off because it reached the limit of {max_tokens} "
+                     "tokens, so it was removed from the conversation. Reply again with a "
+                     "one-sentence Thought and short code without comments.")
 
     if extracted is None:
         if not reply.was_truncated:
@@ -107,7 +109,7 @@ class Agent:
             output = sandbox.run(extracted.code) if extracted is not None else ""
             observation = build_observation(extracted, output, reply, max_tokens)
 
-            # 4. Record this step (sandbox fields stay empty when nothing was executed)
+            # 4. Record this step (the FULL reply is always logged, even if truncated)
             steps.append(StepMetrics(
                 step=step,
                 input_tokens=reply.input_tokens,
@@ -125,10 +127,17 @@ class Agent:
             if sandbox.is_done:
                 break
 
-            # 6. Add this turn to the conversation for the next iteration
-            messages.append({"role": "assistant", "content": reply.text})
+            # 6. Add this turn to the conversation. A truncated reply is replaced by a short
+            #    placeholder, so the LLM cannot imitate it and we do not pay to resend it.
+            if reply.was_truncated:
+                assistant_content = TRUNCATED_PLACEHOLDER
+                assistant_tokens = estimate_tokens(TRUNCATED_PLACEHOLDER)
+            else:
+                assistant_content = reply.text
+                assistant_tokens = reply.output_tokens
+            messages.append({"role": "assistant", "content": assistant_content})
             messages.append({"role": "user", "content": observation})
-            next_input_estimate = (reply.input_tokens + reply.output_tokens
+            next_input_estimate = (reply.input_tokens + assistant_tokens
                                    + estimate_tokens(observation) + TEMPLATE_MARGIN_TOKENS)
 
         if not sandbox.is_done and error is None:
