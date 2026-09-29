@@ -2,18 +2,21 @@
 import time
 from dataclasses import dataclass
 
-from core.extraction import extract_code
-from core.llm import LLMClient
+from core.extraction import ExtractedCode, extract_code
+from core.llm import LLMClient, LLMResponse
 from core.models_public import SolutionOutput, StepMetrics
 from core.sandbox import Sandbox
 
 MAX_OBSERVATION_CHARS = 2_000
 TEMPLATE_MARGIN_TOKENS = 20   # extra tokens added by the chat template on each request
+MIN_OUTPUT_TOKENS = 30        # below this, a reply is too short to be useful
 NO_CODE_MESSAGE = (
     "No ```python code block was found in your response. "
     "Write your code inside a ```python block and end it with <end_code>."
 )
 NO_OUTPUT_MESSAGE = "(code executed successfully, no output)"
+UNCLOSED_BLOCK_NOTE = ("Your ```python block was not closed; "
+                       "the code was executed anyway, up to the end of your reply.")
 
 
 @dataclass
@@ -30,16 +33,31 @@ def estimate_tokens(text: str) -> int:
     return len(text) // 4 + 1
 
 
-def build_observation(code: str | None, output: str) -> str:
-    """Turn the sandbox result into the message the LLM will read."""
-    if code is None:
-        return "Observation: " + NO_CODE_MESSAGE
+def build_observation(extracted: ExtractedCode | None, output: str,
+                      reply: LLMResponse, max_tokens: int) -> str:
+    """Turn what happened into the message the LLM will read. It must never have to guess."""
+    notes: list[str] = []
+    if reply.was_truncated:
+        notes.append(f"Your reply was cut off because it reached the limit of {max_tokens} tokens. "
+                     "Keep the Thought short and write code without comments.")
+
+    if extracted is None:
+        if not reply.was_truncated:
+            notes.append(NO_CODE_MESSAGE)
+        return "Observation: No code was executed. " + " ".join(notes)
+
+    if extracted.malformed:
+        notes.append(UNCLOSED_BLOCK_NOTE)
     if output == "":
         output = NO_OUTPUT_MESSAGE
     if len(output) > MAX_OBSERVATION_CHARS:
         output = (output[:MAX_OBSERVATION_CHARS]
                   + f"\n[output truncated: only the first {MAX_OBSERVATION_CHARS} characters are shown]")
-    return "Observation: " + output
+
+    observation = "Observation: " + output
+    if notes:
+        observation += "\nNote: " + " ".join(notes)
+    return observation
 
 
 class Agent:
@@ -68,14 +86,15 @@ class Agent:
         error: str | None = None
 
         for step in range(1, self.limits.max_iterations + 1):
-            # 0. Can we afford another LLM call?
+            # 0. Can we afford another LLM call? How many output tokens are left?
             error = self._check_budget(start_time, total_input, total_output, next_input_estimate)
             if error is not None:
                 break
+            max_tokens = min(self.llm.max_tokens, self.limits.max_output_tokens - total_output)
 
             # 1. THOUGHT + CODE: ask the LLM
             try:
-                reply = self.llm.generate(messages)
+                reply = self.llm.generate(messages, max_tokens=max_tokens)
             except Exception as exc:
                 error = f"LLM request failed: {exc}"
                 break
@@ -84,11 +103,11 @@ class Agent:
             total_output += reply.output_tokens
 
             # 2. Extract the code and 3. OBSERVATION: run it
-            code = extract_code(reply.text)
-            output = sandbox.run(code) if code is not None else ""
-            observation = build_observation(code, output)
+            extracted = extract_code(reply.text)
+            output = sandbox.run(extracted.code) if extracted is not None else ""
+            observation = build_observation(extracted, output, reply, max_tokens)
 
-            # 4. Record this step
+            # 4. Record this step (sandbox fields stay empty when nothing was executed)
             steps.append(StepMetrics(
                 step=step,
                 input_tokens=reply.input_tokens,
@@ -97,8 +116,8 @@ class Agent:
                 api_url=self.llm.api_url,
                 model_name=self.llm.model_name,
                 llm_output=reply.text,
-                sandbox_input=code or "",
-                sandbox_output=observation,
+                sandbox_input=extracted.code if extracted is not None else "",
+                sandbox_output=output,
                 retries=reply.retries,
             ))
 
@@ -138,6 +157,6 @@ class Agent:
             return f"Time limit reached ({elapsed:.1f}s)"
         if total_input + next_input_estimate > self.limits.max_input_tokens:
             return "Stopped: the next request would exceed the input token limit"
-        if total_output + self.llm.max_tokens > self.limits.max_output_tokens:
-            return "Stopped: the next request could exceed the output token limit"
+        if self.limits.max_output_tokens - total_output < MIN_OUTPUT_TOKENS:
+            return "Stopped: the output token budget is exhausted"
         return None

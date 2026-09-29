@@ -11,5 +11,12 @@ client = LLMClient(
     model_name="qwen/qwen3.8-27b:free",
     extra_body={"reasoning": {"enabled": False}},
 )
-result = client.generate([{"role": "user", "content": "Say hello in one word."}])
-print(result)
+
+short = client.generate([{"role": "user", "content": "Say hello in one word."}])
+print("Normal:", repr(short.text), "| finish_reason:", short.finish_reason,
+      "| truncated:", short.was_truncated)
+
+cut = client.generate([{"role": "user", "content": "Count from 1 to 50, separated by commas."}],
+                      max_tokens=5)
+print("Cortada:", repr(cut.text), "| finish_reason:", cut.finish_reason,
+      "| truncated:", cut.was_truncated)
