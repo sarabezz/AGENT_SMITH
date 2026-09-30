@@ -26,6 +26,7 @@ class Sandbox:
         self.config = config if config is not None else SandboxConfig()   # secure by default
         self.is_done: bool = False
         self.final_answer_value: Any = None
+        self.last_run_ok: bool = True     # did the last run() finish without errors?
         self._start_worker()
 
     def _start_worker(self) -> None:
@@ -42,6 +43,7 @@ class Sandbox:
     def run(self, code: str) -> str:
         """Send code to the worker and wait for the result, at most max_execution_time_seconds."""
         timeout = self.config.max_execution_time_seconds
+        self.last_run_ok = False
         try:
             self._conn.send(code)
             if not self._conn.poll(timeout):          # no answer in time: kill and restart
@@ -56,6 +58,7 @@ class Sandbox:
             self._start_worker()
             return CRASH_MESSAGE.format(code=exit_code)
 
+        self.last_run_ok = reply["ok"]
         if reply["is_done"]:
             self.is_done = True
             self.final_answer_value = reply["final_answer"]

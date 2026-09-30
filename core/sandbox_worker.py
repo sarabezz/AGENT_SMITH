@@ -43,6 +43,7 @@ def worker_main(conn: Connection, config_data: dict[str, Any]) -> None:
         output = runtime.run(code)
         conn.send({
             "output": output,
+            "ok": runtime.last_run_ok,
             "is_done": runtime.is_done,
             "final_answer": None if runtime.final_answer_value is None
             else str(runtime.final_answer_value),

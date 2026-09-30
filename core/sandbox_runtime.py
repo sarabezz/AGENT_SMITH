@@ -48,6 +48,7 @@ class SandboxRuntime:
         self.executed_code: list[str] = []      # code blocks that ran WITHOUT errors
         self._running_code: str = ""            # the block being executed right now
         self._block_count: int = 0
+        self.last_run_ok: bool = True           # did the last block run without errors?
         self.namespace: dict[str, Any] = {
             "__builtins__": self._build_safe_builtins(),
             "final_answer": self._final_answer,
@@ -159,6 +160,7 @@ class SandboxRuntime:
         """Check the code, execute it, and return everything it printed (plus any error)."""
         buffer = io.StringIO()
         self._block_count += 1
+        self.last_run_ok = False
         filename = CODE_FILENAME.format(n=self._block_count)
         try:
             self._check_code(code, filename)       # protection 3: BEFORE running anything
@@ -168,6 +170,7 @@ class SandboxRuntime:
             with redirect_stdout(buffer):
                 exec(compiled, self.namespace)
             self.executed_code.append(code)        # only code that ran without errors is recorded
+            self.last_run_ok = True
         except SandboxSecurityError as exc:
             buffer.write(f"SandboxSecurityError: {exc}\n")
         except MemoryError:
