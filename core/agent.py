@@ -1,4 +1,5 @@
 """The agent loop: Thought -> Code -> Observation, with per-step metrics and hard limits."""
+import sys
 import time
 from dataclasses import dataclass
 
@@ -15,9 +16,12 @@ NO_CODE_MESSAGE = (
     "Write your code inside a ```python block and end it with <end_code>."
 )
 NO_OUTPUT_MESSAGE = "(code executed successfully, no output)"
-UNCLOSED_BLOCK_NOTE = ("Your ```python block was not closed; "
-                       "the code was executed anyway, up to the end of your reply.")
-TRUNCATED_PLACEHOLDER = "[My previous reply was too long and was cut off.]"
+UNCLOSED_BLOCK_NOTE = (
+    "Your reply ended before the ```python block was closed, so it was removed from the "
+    "conversation; the partial code was executed anyway, up to the end of your reply. "
+    "Write the COMPLETE code again and close the block with ``` followed by <end_code>."
+)
+INCOMPLETE_PLACEHOLDER = "[My previous reply was incomplete and was removed.]"
 
 
 @dataclass
@@ -34,6 +38,11 @@ def estimate_tokens(text: str) -> int:
     return len(text) // 4 + 1
 
 
+def is_incomplete(reply: LLMResponse, extracted: ExtractedCode | None) -> bool:
+    """A reply is incomplete if we cut it (max_tokens) or if its code block was never closed."""
+    return reply.was_truncated or (extracted is not None and extracted.malformed)
+
+
 def build_observation(extracted: ExtractedCode | None, output: str,
                       reply: LLMResponse, max_tokens: int) -> str:
     """Turn what happened into the message the LLM will read. It must never have to guess."""
@@ -48,7 +57,7 @@ def build_observation(extracted: ExtractedCode | None, output: str,
             notes.append(NO_CODE_MESSAGE)
         return "Observation: No code was executed. " + " ".join(notes)
 
-    if extracted.malformed:
+    if extracted.malformed and not reply.was_truncated:
         notes.append(UNCLOSED_BLOCK_NOTE)
     if output == "":
         output = NO_OUTPUT_MESSAGE
@@ -60,6 +69,14 @@ def build_observation(extracted: ExtractedCode | None, output: str,
     if notes:
         observation += "\nNote: " + " ".join(notes)
     return observation
+
+
+def log_step(step: int, reply: LLMResponse, extracted: ExtractedCode | None) -> None:
+    """One line per step on stderr (saved as stderr.log by the exam) to debug the agent."""
+    malformed = extracted.malformed if extracted is not None else None
+    print(f"[step {step}] in={reply.input_tokens} out={reply.output_tokens} "
+          f"finish_reason={reply.finish_reason!r} retries={reply.retries} "
+          f"code_found={extracted is not None} unclosed_block={malformed}", file=sys.stderr)
 
 
 class Agent:
@@ -116,8 +133,9 @@ class Agent:
             extracted = extract_code(reply.text)
             output = sandbox.run(extracted.code) if extracted is not None else ""
             observation = build_observation(extracted, output, reply, max_tokens)
+            log_step(step, reply, extracted)
 
-            # 4. Record this step (the FULL reply is always logged, even if truncated)
+            # 4. Record this step (the FULL reply is always logged, even if incomplete)
             steps.append(StepMetrics(
                 step=step,
                 input_tokens=reply.input_tokens,
@@ -135,11 +153,12 @@ class Agent:
             if sandbox.is_done:
                 break
 
-            # 6. Add this turn to the conversation. A truncated reply is replaced by a short
-            #    placeholder, so the LLM cannot imitate it and we do not pay to resend it.
-            if reply.was_truncated:
-                assistant_content = TRUNCATED_PLACEHOLDER
-                assistant_tokens = estimate_tokens(TRUNCATED_PLACEHOLDER)
+            # 6. Add this turn to the conversation. An INCOMPLETE reply (cut by us, or with an
+            #    unclosed code block) is replaced by a short placeholder, so the LLM cannot
+            #    imitate it and we do not pay to resend it.
+            if is_incomplete(reply, extracted):
+                assistant_content = INCOMPLETE_PLACEHOLDER
+                assistant_tokens = estimate_tokens(INCOMPLETE_PLACEHOLDER)
             else:
                 assistant_content = reply.text
                 assistant_tokens = reply.output_tokens
