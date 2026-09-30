@@ -10,9 +10,10 @@ from pydantic import ValidationError
 from agent_mbpp.prompts import SYSTEM_PROMPT, build_task_prompt
 from core.agent import Agent, AgentLimits
 from core.llm import LLMClient
-from core.models_public import MBPPTaskInput, SolutionOutput
+from core.models_public import MBPPTaskInput, SandboxConfig, SolutionOutput
 
 MAX_TOKENS_PER_CALL = 400
+DEFAULT_SANDBOX_CONFIG = Path(__file__).resolve().parent.parent / "sandbox_template.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,6 +26,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
                         help="Name of the environment variable that holds the API key")
     parser.add_argument("--max-iterations", type=int, default=10)
+    parser.add_argument("--sandbox-config", type=Path, default=DEFAULT_SANDBOX_CONFIG,
+                        help="Sandbox configuration JSON (default: sandbox_template.json)")
     return parser.parse_args()
 
 
@@ -38,11 +41,16 @@ def failed_output(task_id: str, error: str) -> SolutionOutput:
 
 
 def solve(args: argparse.Namespace) -> SolutionOutput:
-    """Load the task, build the agent and run it."""
+    """Load the task and the sandbox config, build the agent and run it."""
     try:
         task = MBPPTaskInput.model_validate_json(args.task_file.read_text())
     except (OSError, ValidationError) as exc:
         return failed_output("unknown", f"Could not read task file: {exc}")
+
+    try:
+        sandbox_config = SandboxConfig.model_validate_json(args.sandbox_config.read_text())
+    except (OSError, ValidationError) as exc:
+        return failed_output(str(task.task_id), f"Could not read sandbox config: {exc}")
 
     api_key = os.getenv(args.api_key_env)
     if not api_key:
@@ -57,7 +65,8 @@ def solve(args: argparse.Namespace) -> SolutionOutput:
         extra_body={"reasoning": {"enabled": False}},
     )
     agent = Agent(llm=llm, system_prompt=SYSTEM_PROMPT, benchmark="mbpp",
-                  limits=AgentLimits(max_iterations=args.max_iterations))
+                  limits=AgentLimits(max_iterations=args.max_iterations),
+                  sandbox_config=sandbox_config)
     return agent.run(task_id=str(task.task_id), task_prompt=build_task_prompt(task))
 
 

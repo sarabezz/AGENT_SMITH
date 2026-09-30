@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from core.extraction import ExtractedCode, extract_code
 from core.llm import LLMClient, LLMResponse
-from core.models_public import SolutionOutput, StepMetrics
+from core.models_public import SandboxConfig, SolutionOutput, StepMetrics
 from core.sandbox import Sandbox
 
 MAX_OBSERVATION_CHARS = 2_000
@@ -65,17 +65,25 @@ def build_observation(extracted: ExtractedCode | None, output: str,
 class Agent:
     """Runs the Thought -> Code -> Observation loop on one task."""
 
-    def __init__(self, llm: LLMClient, system_prompt: str,
-                 benchmark: str, limits: AgentLimits) -> None:
+    def __init__(self, llm: LLMClient, system_prompt: str, benchmark: str,
+                 limits: AgentLimits, sandbox_config: SandboxConfig) -> None:
         self.llm = llm
         self.system_prompt = system_prompt
         self.benchmark = benchmark
         self.limits = limits
+        self.sandbox_config = sandbox_config
 
     def run(self, task_id: str, task_prompt: str) -> SolutionOutput:
-        """Solve one task and always return a SolutionOutput (never crashes on LLM errors)."""
+        """Solve one task in a fresh sandbox, which is ALWAYS closed at the end."""
+        sandbox = Sandbox(self.sandbox_config)
+        try:
+            return self._solve(task_id, task_prompt, sandbox)
+        finally:
+            sandbox.close()
+
+    def _solve(self, task_id: str, task_prompt: str, sandbox: Sandbox) -> SolutionOutput:
+        """The loop itself. Always returns a SolutionOutput (never crashes on LLM errors)."""
         start_time = time.perf_counter()
-        sandbox = Sandbox()
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": task_prompt},
@@ -104,7 +112,7 @@ class Agent:
             total_input += reply.input_tokens
             total_output += reply.output_tokens
 
-            # 2. Extract the code and 3. OBSERVATION: run it
+            # 2. Extract the code and 3. OBSERVATION: run it in the sandbox
             extracted = extract_code(reply.text)
             output = sandbox.run(extracted.code) if extracted is not None else ""
             observation = build_observation(extracted, output, reply, max_tokens)
