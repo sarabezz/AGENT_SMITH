@@ -25,12 +25,21 @@ ATTACKS = {
         'import random\nprint(random._os.listdir("."))',
     "9. BACK DOOR: climb to every class with dunders":
         'print(len(().__class__.__base__.__subclasses__()), "classes reachable")',
-    "10. [SHOULD WORK] allowed import math":
+    "10. PATH TRICK: escape with '..'":
+        'print(open("/tmp/agent/../../etc/hostname").read())',
+    "11. PATH TRICK: similar folder name":
+        'print(open("/tmp/agent_evil/secret.txt").read())',
+    "12. [SHOULD WORK] allowed import math":
         'import math\nprint(math.sqrt(16))',
-    "11. [SHOULD WORK] normal builtins":
+    "13. [SHOULD WORK] normal builtins":
         'print(len([1, 2, 3]), sorted([3, 1, 2]), max(4, 9))',
-    "12. [SHOULD WORK] a normal class with __init__":
+    "14. [SHOULD WORK] a normal class with __init__":
         'class Point:\n    def __init__(self, x):\n        self.x = x\nprint(Point(3).x)',
+    "15. [SHOULD WORK] read a file in /tmp/agent":
+        'print(open("/tmp/agent/test.txt").read())',
+    "16. [SHOULD WORK] write and read back in /tmp/agent":
+        'f = open("/tmp/agent/notes.txt", "w")\nf.write("written by the sandbox")\nf.close()\n'
+        'print(open("/tmp/agent/notes.txt").read())',
 }
 
 for name, code in ATTACKS.items():
@@ -38,3 +47,4 @@ for name, code in ATTACKS.items():
     output = sandbox.run(code).strip()
     last_line = output.splitlines()[-1] if output else "(no output)"
     print(f"{name}\n   → {last_line}\n")
+    

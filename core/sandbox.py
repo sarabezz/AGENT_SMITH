@@ -3,9 +3,11 @@ import ast
 import builtins
 import fnmatch
 import io
+import os
 import traceback
 from collections.abc import Callable
 from contextlib import redirect_stdout
+from pathlib import Path
 from typing import Any
 
 from core.models_public import SandboxConfig
@@ -13,7 +15,6 @@ from core.models_public import SandboxConfig
 # Builtins the LLM code must never use (see the README for the reason of each one)
 BLOCKED_BUILTINS = (
     "eval", "exec", "compile",          # run text as code: bypass every other check
-    "open",                             # any file on disk (replaced later by a safe version)
     "input", "breakpoint", "help",      # interactive: would hang the agent forever
     "exit", "quit",                     # would close the whole agent
     "globals", "locals", "vars",        # access to the namespaces (and our builtins)
@@ -46,11 +47,12 @@ class Sandbox:
         }
 
     def _build_safe_builtins(self) -> dict[str, Any]:
-        """A private COPY of Python's builtins: import guard + dangerous builtins blocked."""
+        """A private COPY of Python's builtins with every protection plugged in."""
         safe_builtins = dict(vars(builtins))
         safe_builtins["__import__"] = self._safe_import           # protection 1
         for name in BLOCKED_BUILTINS:                             # protection 2
             safe_builtins[name] = _make_blocked(name)
+        safe_builtins["open"] = self._safe_open                   # protection 4
         return safe_builtins
 
     # ---------- Protection 1: imports ----------
@@ -84,6 +86,24 @@ class Sandbox:
             if isinstance(node, ast.Name) and node.id.startswith("__"):
                 raise SandboxSecurityError(
                     f"line {node.lineno}: the name '{node.id}' is not allowed in the sandbox")
+
+    # ---------- Protection 4: filesystem ----------
+
+    def _is_path_allowed(self, real_path: Path) -> bool:
+        """True if the (already resolved) path is inside one of the allowed directories."""
+        return any(real_path.is_relative_to(Path(directory).resolve())
+                   for directory in self.config.allowed_directories)
+
+    def _safe_open(self, file: Any, mode: str = "r", *args: Any, **kwargs: Any) -> Any:
+        """Replacement for open(): only files inside the allowed directories."""
+        if not isinstance(file, (str, os.PathLike)):
+            raise PermissionError("open() only accepts a file path in the sandbox")
+        real_path = Path(file).resolve()          # undo '..' and symlinks BEFORE checking
+        if not self._is_path_allowed(real_path):
+            allowed = ", ".join(self.config.allowed_directories) or "none"
+            raise PermissionError(f"Access to '{file}' is not allowed in the sandbox. "
+                                  f"Allowed directories: {allowed}")
+        return builtins.open(real_path, mode, *args, **kwargs)
 
     # ---------- final_answer ----------
 
@@ -133,3 +153,4 @@ class Sandbox:
         except Exception:
             buffer.write(traceback.format_exc())
         return buffer.getvalue()
+    
