@@ -1,20 +1,91 @@
-"""Execution sandbox for LLM-generated code (basic version: no security yet)."""
+"""Execution sandbox for LLM-generated code."""
 import ast
+import builtins
+import fnmatch
 import io
 import traceback
+from collections.abc import Callable
 from contextlib import redirect_stdout
 from typing import Any
 
+from core.models_public import SandboxConfig
+
+# Builtins the LLM code must never use (see the README for the reason of each one)
+BLOCKED_BUILTINS = (
+    "eval", "exec", "compile",          # run text as code: bypass every other check
+    "open",                             # any file on disk (replaced later by a safe version)
+    "input", "breakpoint", "help",      # interactive: would hang the agent forever
+    "exit", "quit",                     # would close the whole agent
+    "globals", "locals", "vars",        # access to the namespaces (and our builtins)
+    "getattr", "setattr", "delattr",    # access attributes by name: classic way to escape checks
+)
+
+
+class SandboxSecurityError(Exception):
+    """Raised when LLM code tries to do something the sandbox forbids."""
+
+
+def _make_blocked(name: str) -> Callable[..., Any]:
+    """Build a replacement for a forbidden builtin that always raises a clear error."""
+    def blocked(*args: Any, **kwargs: Any) -> Any:
+        raise PermissionError(f"The builtin '{name}' is not allowed in the sandbox")
+    return blocked
+
 
 class Sandbox:
-    """Run code with a persistent namespace and a built-in final_answer()."""
+    """Run code with a persistent namespace, a built-in final_answer() and security checks."""
 
-    def __init__(self) -> None:
-        self.namespace: dict[str, Any] = {}
+    def __init__(self, config: SandboxConfig | None = None) -> None:
+        self.config = config if config is not None else SandboxConfig()   # secure by default
         self.is_done: bool = False
         self.final_answer_value: Any = None
-        self.executed_code: list[str] = []      # every code block run so far
-        self.namespace["final_answer"] = self._final_answer
+        self.executed_code: list[str] = []
+        self.namespace: dict[str, Any] = {
+            "__builtins__": self._build_safe_builtins(),
+            "final_answer": self._final_answer,
+        }
+
+    def _build_safe_builtins(self) -> dict[str, Any]:
+        """A private COPY of Python's builtins: import guard + dangerous builtins blocked."""
+        safe_builtins = dict(vars(builtins))
+        safe_builtins["__import__"] = self._safe_import           # protection 1
+        for name in BLOCKED_BUILTINS:                             # protection 2
+            safe_builtins[name] = _make_blocked(name)
+        return safe_builtins
+
+    # ---------- Protection 1: imports ----------
+
+    def _is_import_allowed(self, module_name: str) -> bool:
+        """True if the module matches one of the authorized patterns (e.g. 'math', 'collections.*')."""
+        return any(fnmatch.fnmatch(module_name, pattern)
+                   for pattern in self.config.authorized_imports)
+
+    def _safe_import(self, name: str, globals: Any = None, locals: Any = None,
+                     fromlist: Any = (), level: int = 0) -> Any:
+        """Replacement for __import__: only modules in the allowlist can be imported."""
+        if level != 0:
+            raise ImportError("Relative imports are not allowed in the sandbox")
+        if not self._is_import_allowed(name):
+            allowed = ", ".join(p for p in self.config.authorized_imports if "*" not in p)
+            raise ImportError(f"Import of '{name}' is not allowed in the sandbox. "
+                              f"Allowed modules: {allowed or 'none'}")
+        return builtins.__import__(name, globals, locals, fromlist, level)
+
+    # ---------- Protection 3: static check of the code before running it ----------
+
+    def _check_code(self, code: str) -> None:
+        """Reject code that touches private/dunder names (back doors like random._os or __class__)."""
+        tree = ast.parse(code)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr.startswith("_"):
+                raise SandboxSecurityError(
+                    f"line {node.lineno}: access to the attribute '{node.attr}' is not allowed "
+                    "(attribute names starting with '_' are blocked in the sandbox)")
+            if isinstance(node, ast.Name) and node.id.startswith("__"):
+                raise SandboxSecurityError(
+                    f"line {node.lineno}: the name '{node.id}' is not allowed in the sandbox")
+
+    # ---------- final_answer ----------
 
     def _final_answer(self, answer: Any) -> None:
         """Called when the LLM code runs final_answer(...).
@@ -35,25 +106,30 @@ class Sandbox:
             try:
                 tree = ast.parse(code)
             except SyntaxError:
-                continue                        # skip blocks that were not valid Python
+                continue
             for node in tree.body:
                 segment = ast.get_source_segment(code, node) or ""
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
                     if segment not in imports:
                         imports.append(segment)
                 elif isinstance(node, ast.FunctionDef) and node.name == name:
-                    definition = segment        # a later definition replaces an earlier one
+                    definition = segment
         if not definition:
             raise ValueError(f"final_answer: could not find the source code of '{name}'")
         return "\n".join(imports + [definition])
 
+    # ---------- Execution ----------
+
     def run(self, code: str) -> str:
-        """Execute code and return everything it printed, plus the traceback if it failed."""
-        self.executed_code.append(code)         # saved BEFORE running: final_answer may need it
+        """Check the code, execute it, and return everything it printed (plus any error)."""
         buffer = io.StringIO()
         try:
+            self._check_code(code)                 # protection 3: BEFORE running anything
+            self.executed_code.append(code)        # only code that passed the check is recorded
             with redirect_stdout(buffer):
                 exec(code, self.namespace)
+        except SandboxSecurityError as exc:
+            buffer.write(f"SandboxSecurityError: {exc}\n")
         except Exception:
             buffer.write(traceback.format_exc())
         return buffer.getvalue()
