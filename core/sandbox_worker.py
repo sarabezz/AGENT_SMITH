@@ -11,7 +11,7 @@ from core.sandbox_runtime import SandboxRuntime
 def _block_network() -> None:
     """Unplug the network of this process: every way to open a connection raises an error."""
     def blocked(*args: Any, **kwargs: Any) -> Any:
-        raise PermissionError("Network access is not allowed in the sandbox")
+        raise PermissionError("Network access is blocked by sandbox security policy")
 
     class BlockedSocket(socket.socket):
         """Still a class (other modules inherit from it), but creating one always fails."""
