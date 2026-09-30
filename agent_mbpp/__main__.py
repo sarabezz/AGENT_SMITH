@@ -14,10 +14,11 @@ from core.models_public import MBPPTaskInput, SandboxConfig, SolutionOutput
 
 MAX_TOKENS_PER_CALL = 400
 DEFAULT_SANDBOX_CONFIG = Path(__file__).resolve().parent.parent / "sandbox_template.json"
+DEFAULT_LIMITS = AgentLimits()          # MBPP limits checked by the moulinette
 
 
 def parse_args() -> argparse.Namespace:
-    """Read the command-line options."""
+    """Read the command-line options (the exam script passes all of them)."""
     parser = argparse.ArgumentParser(description="Solve one MBPP task with the agent.")
     parser.add_argument("--task-file", required=True, type=Path, help="Task JSON from the moulinette")
     parser.add_argument("--output", required=True, type=Path, help="Where to write solution.json")
@@ -25,7 +26,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--provider-url", required=True, help="e.g. https://openrouter.ai/api/v1")
     parser.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
                         help="Name of the environment variable that holds the API key")
-    parser.add_argument("--max-iterations", type=int, default=10)
+    parser.add_argument("--max-iterations", type=int, default=DEFAULT_LIMITS.max_iterations)
+    parser.add_argument("--max-input-tokens", type=int, default=DEFAULT_LIMITS.max_input_tokens)
+    parser.add_argument("--max-output-tokens", type=int, default=DEFAULT_LIMITS.max_output_tokens)
+    parser.add_argument("--timeout", type=float, default=DEFAULT_LIMITS.max_time_seconds,
+                        help="Maximum wall-clock seconds for the whole task")
     parser.add_argument("--sandbox-config", type=Path, default=DEFAULT_SANDBOX_CONFIG,
                         help="Sandbox configuration JSON (default: sandbox_template.json)")
     return parser.parse_args()
@@ -64,9 +69,14 @@ def solve(args: argparse.Namespace) -> SolutionOutput:
         stop=["<end_code>"],
         extra_body={"reasoning": {"enabled": False}},
     )
+    limits = AgentLimits(
+        max_iterations=args.max_iterations,
+        max_input_tokens=args.max_input_tokens,
+        max_output_tokens=args.max_output_tokens,
+        max_time_seconds=args.timeout,
+    )
     agent = Agent(llm=llm, system_prompt=SYSTEM_PROMPT, benchmark="mbpp",
-                  limits=AgentLimits(max_iterations=args.max_iterations),
-                  sandbox_config=sandbox_config)
+                  limits=limits, sandbox_config=sandbox_config)
     return agent.run(task_id=str(task.task_id), task_prompt=build_task_prompt(task))
 
 
