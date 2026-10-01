@@ -6,6 +6,7 @@ from typing import Any
 
 from core.models_public import SandboxConfig
 from core.sandbox_runtime import SandboxRuntime
+from core.tool_bridge import ToolCaller
 
 
 def _block_network() -> None:
@@ -29,10 +30,21 @@ def _limit_memory(max_mb: int) -> None:
     resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
 
 
-def worker_main(conn: Connection, config_data: dict[str, Any]) -> None:
+def _make_tool_caller(conn: Connection) -> ToolCaller:
+    """The only way out of the sandbox: ask the agent (boss) to call an MCP tool for us."""
+    def call_tool(name: str, arguments: dict[str, Any]) -> str:
+        conn.send({"type": "tool_call", "name": name, "args": arguments})
+        reply = conn.recv()                  # wait here until the boss sends the answer
+        return reply["text"]
+    return call_tool
+
+
+def worker_main(conn: Connection, config_data: dict[str, Any],
+                tool_specs: list[dict[str, Any]]) -> None:
     """Main loop of the worker: receive code, run it, send back the result."""
     config = SandboxConfig(**config_data)
     runtime = SandboxRuntime(config)
+    runtime.add_tools(tool_specs, _make_tool_caller(conn))   # bridge functions for the MCP tools
     _block_network()                         # protection 5: no network
     _limit_memory(config.max_memory_mb)      # protection 6: memory limit (set AFTER the imports)
     while True:
@@ -42,6 +54,7 @@ def worker_main(conn: Connection, config_data: dict[str, Any]) -> None:
             return
         output = runtime.run(code)
         conn.send({
+            "type": "result",
             "output": output,
             "ok": runtime.last_run_ok,
             "is_done": runtime.is_done,

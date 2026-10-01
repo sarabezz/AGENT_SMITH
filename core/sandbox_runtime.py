@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from core.models_public import SandboxConfig
+from core.tool_bridge import ToolCaller, make_bridge
 
 CODE_FILENAME = "<code block {n}>"      # name of each LLM code block in tracebacks
 POLICY_BLOCKED = "blocked by sandbox security policy"
@@ -62,6 +63,15 @@ class SandboxRuntime:
             safe_builtins[name] = _make_blocked(name)
         safe_builtins["open"] = self._safe_open                   # protection 4
         return safe_builtins
+
+    # ---------- MCP tools ----------
+
+    def add_tools(self, tool_specs: list[dict[str, Any]], call_tool: ToolCaller) -> None:
+        """Put one bridge function per MCP tool in the namespace (final_answer is never replaced)."""
+        for spec in tool_specs:
+            bridge = make_bridge(spec, call_tool)
+            if bridge.__name__ != "final_answer":
+                self.namespace[bridge.__name__] = bridge
 
     # ---------- Protection 1: imports ----------
 
