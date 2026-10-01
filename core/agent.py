@@ -2,6 +2,7 @@
 import sys
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from core.extraction import ExtractedCode, extract_code
 from core.llm import LLMClient, LLMResponse
@@ -83,16 +84,18 @@ class Agent:
     """Runs the Thought -> Code -> Observation loop on one task."""
 
     def __init__(self, llm: LLMClient, system_prompt: str, benchmark: str,
-                 limits: AgentLimits, sandbox_config: SandboxConfig) -> None:
+                 limits: AgentLimits, sandbox_config: SandboxConfig,
+                 mcp_client: Any = None) -> None:
         self.llm = llm
         self.system_prompt = system_prompt
         self.benchmark = benchmark
         self.limits = limits
         self.sandbox_config = sandbox_config
+        self.mcp_client = mcp_client        # optional: its tools become functions in the sandbox
 
     def run(self, task_id: str, task_prompt: str) -> SolutionOutput:
         """Solve one task in a fresh sandbox, which is ALWAYS closed at the end."""
-        sandbox = Sandbox(self.sandbox_config)
+        sandbox = Sandbox(self.sandbox_config, mcp_client=self.mcp_client)
         try:
             return self._solve(task_id, task_prompt, sandbox)
         finally:

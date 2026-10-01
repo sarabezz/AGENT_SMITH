@@ -2,6 +2,7 @@
 import ast
 import builtins
 import fnmatch
+import inspect
 import io
 import linecache
 import os
@@ -69,9 +70,15 @@ class SandboxRuntime:
     def add_tools(self, tool_specs: list[dict[str, Any]], call_tool: ToolCaller) -> None:
         """Put one bridge function per MCP tool in the namespace (final_answer is never replaced)."""
         for spec in tool_specs:
-            bridge = make_bridge(spec, call_tool)
+            bridge = make_bridge(spec, call_tool, convert=self._function_to_source)
             if bridge.__name__ != "final_answer":
                 self.namespace[bridge.__name__] = bridge
+
+    def _function_to_source(self, value: Any) -> Any:
+        """A function defined by the LLM is sent to the tools as its source code."""
+        if inspect.isfunction(value):
+            return self._source_of(value.__name__)
+        return value
 
     # ---------- Protection 1: imports ----------
 

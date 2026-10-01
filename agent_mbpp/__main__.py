@@ -7,13 +7,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 from pydantic import ValidationError
 
-from agent_mbpp.prompts import SYSTEM_PROMPT, build_task_prompt
+from agent_mbpp.prompts import SYSTEM_PROMPT, build_system_prompt, build_task_prompt
 from core.agent import Agent, AgentLimits
 from core.llm import LLMClient
 from core.models_public import MBPPTaskInput, SandboxConfig, SolutionOutput
+from core.tool_bridge import tool_specs_from, tools_manual
+from mcp_client import McpClientManager
 
 MAX_TOKENS_PER_CALL = 400
-DEFAULT_SANDBOX_CONFIG = Path(__file__).resolve().parent.parent / "sandbox_template.json"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_SANDBOX_CONFIG = REPO_ROOT / "sandbox_template.json"
+MCP_SERVER_FILE = REPO_ROOT / "mcp_tools_mbpp.py"
 DEFAULT_LIMITS = AgentLimits()          # MBPP limits checked by the moulinette
 
 
@@ -33,6 +37,8 @@ def parse_args() -> argparse.Namespace:
                         help="Maximum wall-clock seconds for the whole task")
     parser.add_argument("--sandbox-config", type=Path, default=DEFAULT_SANDBOX_CONFIG,
                         help="Sandbox configuration JSON (default: sandbox_template.json)")
+    parser.add_argument("--no-tools", action="store_true",
+                        help="Do not start the MCP server (the agent checks its code with asserts)")
     return parser.parse_args()
 
 
@@ -43,6 +49,18 @@ def failed_output(task_id: str, error: str) -> SolutionOutput:
         iterations=0, total_requests=0, total_input_tokens=0, total_output_tokens=0,
         total_time_seconds=0.0, system_prompt=SYSTEM_PROMPT, error=error,
     )
+
+
+def start_mcp_server(task_file: Path) -> McpClientManager | None:
+    """Start mcp_tools_mbpp.py for this task. If it fails, the agent works without tools."""
+    try:
+        return McpClientManager(
+            stdio_cmd=[sys.executable, str(MCP_SERVER_FILE)],
+            env={"MBPP_TASK_FILE": str(task_file.resolve())},   # the note: which task to test
+        )
+    except Exception as exc:
+        print(f"Warning: MCP server not available, running without tools: {exc}", file=sys.stderr)
+        return None
 
 
 def solve(args: argparse.Namespace) -> SolutionOutput:
@@ -75,9 +93,16 @@ def solve(args: argparse.Namespace) -> SolutionOutput:
         max_output_tokens=args.max_output_tokens,
         max_time_seconds=args.timeout,
     )
-    agent = Agent(llm=llm, system_prompt=SYSTEM_PROMPT, benchmark="mbpp",
-                  limits=limits, sandbox_config=sandbox_config)
-    return agent.run(task_id=str(task.task_id), task_prompt=build_task_prompt(task))
+
+    mcp_client = None if args.no_tools else start_mcp_server(args.task_file)
+    try:
+        manual = tools_manual(tool_specs_from(mcp_client.tools)) if mcp_client else ""
+        agent = Agent(llm=llm, system_prompt=build_system_prompt(manual), benchmark="mbpp",
+                      limits=limits, sandbox_config=sandbox_config, mcp_client=mcp_client)
+        return agent.run(task_id=str(task.task_id), task_prompt=build_task_prompt(task))
+    finally:
+        if mcp_client is not None:
+            mcp_client.close()                # also stops the MCP server process
 
 
 def main() -> None:

@@ -12,6 +12,12 @@ from collections.abc import Callable
 from typing import Any
 
 ToolCaller = Callable[[str, dict[str, Any]], str]    # (tool name, arguments) -> text result
+ValueConverter = Callable[[Any], Any]                 # applied to each argument before sending
+
+JSON_TO_PYTHON_TYPES = {
+    "string": "str", "integer": "int", "number": "float",
+    "boolean": "bool", "array": "list", "object": "dict",
+}
 
 
 def tool_specs_from(tools: list[Any]) -> list[dict[str, Any]]:
@@ -19,13 +25,15 @@ def tool_specs_from(tools: list[Any]) -> list[dict[str, Any]]:
     specs = []
     for tool in tools:
         schema = tool.inputSchema or {}
-        properties = list(schema.get("properties", {}))
+        properties = schema.get("properties", {})
         required = list(schema.get("required", []))
         specs.append({
             "name": tool.name,
             "description": tool.description or "",
             "required": required,
             "optional": [p for p in properties if p not in required],
+            "types": {p: JSON_TO_PYTHON_TYPES.get(info.get("type", ""), "Any")
+                      for p, info in properties.items()},
         })
     return specs
 
@@ -50,7 +58,8 @@ def _build_signature(spec: dict[str, Any]) -> inspect.Signature | None:
         return None
 
 
-def make_bridge(spec: dict[str, Any], call_tool: ToolCaller) -> Callable[..., str]:
+def make_bridge(spec: dict[str, Any], call_tool: ToolCaller,
+                convert: ValueConverter | None = None) -> Callable[..., str]:
     """Build the bridge function for one tool."""
     tool_name = spec["name"]
     signature = _build_signature(spec)
@@ -66,15 +75,33 @@ def make_bridge(spec: dict[str, Any], call_tool: ToolCaller) -> Callable[..., st
                 arguments = dict(signature.bind(*args, **kwargs).arguments)
             except TypeError as exc:
                 raise TypeError(f"{tool_name}{signature}: {exc}") from None
-        # 2. MCP sends JSON: refuse values that cannot be converted
+        # 2. Optional conversion (e.g. a function -> its source code)
+        if convert is not None:
+            arguments = {key: convert(value) for key, value in arguments.items()}
+        # 3. MCP sends JSON: refuse values that cannot be converted
         try:
             json.dumps(arguments)
         except (TypeError, ValueError):
             raise TypeError(f"{tool_name}(): arguments must be JSON values "
                             "(str, int, float, bool, None, list, dict)") from None
-        # 3. Send the request out of the sandbox and wait for the text answer
+        # 4. Send the request out of the sandbox and wait for the text answer
         return call_tool(tool_name, arguments)
 
     bridge.__name__ = python_name(tool_name)
     bridge.__doc__ = spec["description"]
     return bridge
+
+
+def tools_manual(tool_specs: list[dict[str, Any]]) -> str:
+    """The tools section of the system prompt, generated from tools/list (empty if no tools)."""
+    if not tool_specs:
+        return ""
+    lines = ["You can call these tools as normal Python functions. Each one returns a string.",
+             "You can pass a function you defined as an argument: its source code is sent.", ""]
+    for spec in tool_specs:
+        params = [f"{p}: {spec['types'].get(p, 'Any')}" for p in spec["required"]]
+        params += [f"{p}: {spec['types'].get(p, 'Any')} = None" for p in spec["optional"]]
+        lines.append(f"- {python_name(spec['name'])}({', '.join(params)}) -> str")
+        for line in inspect.cleandoc(spec["description"]).splitlines():
+            lines.append(f"    {line}".rstrip())
+    return "\n".join(lines)

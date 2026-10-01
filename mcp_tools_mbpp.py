@@ -18,7 +18,7 @@ from core.sandbox import Sandbox
 TASK_FILE_ENV = "MBPP_TASK_FILE"
 SANDBOX_CONFIG_FILE = Path(__file__).resolve().parent / "sandbox_template.json"
 
-server = FastMCP("mbpp-tools")
+server = FastMCP("mbpp-tools", log_level="WARNING")   # no "Processing request..." logs
 
 
 def load_task() -> MBPPTaskInput:
@@ -56,12 +56,16 @@ def _run_one_test(sandbox: Sandbox, test: str) -> tuple[bool, str]:
     return False, reason
 
 
+ALL_PASSED = "ALL TESTS PASSED"
+
+
 @server.tool()
 def run_tests(code: str) -> str:
     """Run the official tests of the current MBPP task against your code.
 
     `code` must contain the complete function (and any imports it needs).
-    Returns how many tests passed and why each failed test failed.
+    You can also pass the function itself, e.g. run_tests(my_function).
+    Returns "ALL TESTS PASSED" if every test passes; otherwise, why each failed test failed.
     """
     try:
         task = load_task()
@@ -74,16 +78,16 @@ def run_tests(code: str) -> str:
         output = sandbox.run("\n".join(task.test_imports + [code]))
         if not sandbox.last_run_ok:
             return f"Your code could not run, so no test was executed:\n{output}"
-        lines: list[str] = []
-        passed = 0
+        failed: list[str] = []
         for test in task.test_list:
             ok, reason = _run_one_test(sandbox, test)
-            if ok:
-                passed += 1
-                lines.append(f"PASSED: {test}")
-            else:
-                lines.append(f"FAILED: {test}\n        -> {reason}")
-        return "\n".join([f"{passed}/{len(task.test_list)} tests passed"] + lines)
+            if not ok:
+                failed.append(f"FAILED: {test}\n        -> {reason}")
+        total = len(task.test_list)
+        passed = total - len(failed)
+        if not failed:
+            return f"{ALL_PASSED} ({passed}/{total})"
+        return "\n".join([f"{passed}/{total} tests passed"] + failed)
     finally:
         sandbox.close()
 
@@ -102,7 +106,7 @@ def task_description() -> str:
 @server.prompt()
 def solve_mbpp_task() -> str:
     """Short method to solve an MBPP task with these tools."""
-    return ("Write the function with the exact signature, call run_tests(code) with its full source, "
+    return ("Write the function with the exact signature, call run_tests(your_function), "
             "read which tests fail and why, fix the code, and submit it with final_answer "
             "once every test passes.")
 
