@@ -13,6 +13,12 @@ from openai import (
 
 # Temporary errors worth retrying (rate limit, network, server hiccups)
 RETRYABLE_ERRORS = (RateLimitError, APITimeoutError, APIConnectionError, InternalServerError)
+MAX_WAIT_SECONDS = 30.0         # exponential backoff never waits longer than this
+
+
+def estimate_tokens(text: str) -> int:
+    """Rough token count: about 4 characters per token."""
+    return len(text) // 4 + 1
 
 
 @dataclass
@@ -24,6 +30,7 @@ class LLMResponse:
     request_time_ms: float
     retries: int
     finish_reason: str          # "stop" = finished normally, "length" = cut by max_tokens
+    usage_estimated: bool = False   # True if the provider sent no token counts (we estimated)
 
     @property
     def was_truncated(self) -> bool:
@@ -44,6 +51,7 @@ class LLMClient:
         extra_body: dict[str, Any] | None = None,
         max_retries: int = 3,
         wait_seconds: float = 5.0,
+        request_timeout: float = 60.0,
     ) -> None:
         self.api_url = api_url
         self.model_name = model_name
@@ -52,7 +60,14 @@ class LLMClient:
         self.extra_body = extra_body
         self.max_retries = max_retries
         self.wait_seconds = wait_seconds
-        self._client = OpenAI(base_url=api_url, api_key=api_key)
+        # max_retries=0: the library must NOT retry on its own (hidden retries = wrong metrics);
+        # timeout: a provider that hangs raises APITimeoutError instead of blocking for 10 minutes
+        self._client = OpenAI(base_url=api_url, api_key=api_key,
+                              max_retries=0, timeout=request_timeout)
+
+    def _backoff(self, retries: int) -> float:
+        """Seconds to wait before retry number `retries`: 5, 10, 20, 30, 30... (exponential, capped)."""
+        return min(self.wait_seconds * 2 ** (retries - 1), MAX_WAIT_SECONDS)
 
     def generate(self, messages: list[dict[str, str]],
                  max_tokens: int | None = None) -> LLMResponse:
@@ -75,18 +90,25 @@ class LLMClient:
             except RETRYABLE_ERRORS:
                 retries += 1
                 if retries > self.max_retries:
-                    raise                        # give up: let the agent loop handle it
-                time.sleep(self.wait_seconds)
+                    raise                        # give up: let the caller handle it
+                time.sleep(self._backoff(retries))
                 continue                         # go back to the top of the while
             elapsed_ms = (time.perf_counter() - start) * 1000
 
             choice = response.choices[0]
+            text = choice.message.content or ""
             usage = response.usage
+            if usage is not None:
+                input_tokens, output_tokens = usage.prompt_tokens, usage.completion_tokens
+            else:                                # no counts from the provider: estimate them
+                input_tokens = estimate_tokens("".join(m["content"] for m in messages))
+                output_tokens = estimate_tokens(text)
             return LLMResponse(
-                text=choice.message.content or "",
-                input_tokens=usage.prompt_tokens if usage else 0,
-                output_tokens=usage.completion_tokens if usage else 0,
+                text=text,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
                 request_time_ms=elapsed_ms,
                 retries=retries,
                 finish_reason=choice.finish_reason or "",
+                usage_estimated=usage is None,
             )

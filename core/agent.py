@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from core.extraction import ExtractedCode, extract_code
-from core.llm import LLMClient, LLMResponse
+from core.llm import LLMClient, LLMResponse, estimate_tokens
 from core.models_public import SandboxConfig, SolutionOutput, StepMetrics
 from core.sandbox import Sandbox
 
@@ -32,11 +32,6 @@ class AgentLimits:
     max_input_tokens: int = 6_000
     max_output_tokens: int = 1_500
     max_time_seconds: float = 120.0
-
-
-def estimate_tokens(text: str) -> int:
-    """Rough token count: about 4 characters per token."""
-    return len(text) // 4 + 1
 
 
 def is_incomplete(reply: LLMResponse, extracted: ExtractedCode | None) -> bool:
