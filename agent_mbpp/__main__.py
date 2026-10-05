@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from agent_mbpp.prompts import SYSTEM_PROMPT, build_system_prompt, build_task_prompt
 from core.agent import Agent, AgentLimits
 from core.llm_router import LLMRouter, NoCandidateError
+from core.mock_llm import MOCK_ENV, MOCK_NAME, MockLLM
 from core.model_config import (
     DEFAULT_MODELS_CONFIG,
     Candidate,
@@ -82,8 +83,13 @@ def command_line_candidate(args: argparse.Namespace, config: ModelsConfig) -> Ca
                      args.api_key_env, extra_body)
 
 
-def build_llm(args: argparse.Namespace) -> LLMRouter:
-    """The command-line model first, then (unless --no-fallback) the models.json list."""
+def build_llm(args: argparse.Namespace) -> LLMRouter | MockLLM:
+    """The command-line model first, then (unless --no-fallback) the models.json list.
+
+    With AGENT_MOCK_LLM=1 (or --provider-url mock) a fake LLM is used: no API key needed.
+    """
+    if os.getenv(MOCK_ENV) == "1" or args.provider_url == MOCK_NAME:
+        return MockLLM(max_tokens=MAX_TOKENS_PER_CALL)
     config = load_models_config(args.models_config)
     candidates: list[Candidate] = []
     first = command_line_candidate(args, config)
