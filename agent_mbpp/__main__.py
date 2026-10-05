@@ -9,7 +9,14 @@ from pydantic import ValidationError
 
 from agent_mbpp.prompts import SYSTEM_PROMPT, build_system_prompt, build_task_prompt
 from core.agent import Agent, AgentLimits
-from core.llm import LLMClient
+from core.llm_router import LLMRouter, NoCandidateError
+from core.model_config import (
+    DEFAULT_MODELS_CONFIG,
+    Candidate,
+    ModelsConfig,
+    build_candidates,
+    load_models_config,
+)
 from core.models_public import MBPPTaskInput, SandboxConfig, SolutionOutput
 from core.tool_bridge import tool_specs_from, tools_manual
 from mcp_client import McpClientManager
@@ -37,6 +44,10 @@ def parse_args() -> argparse.Namespace:
                         help="Maximum wall-clock seconds for the whole task")
     parser.add_argument("--sandbox-config", type=Path, default=DEFAULT_SANDBOX_CONFIG,
                         help="Sandbox configuration JSON (default: sandbox_template.json)")
+    parser.add_argument("--models-config", type=Path, default=DEFAULT_MODELS_CONFIG,
+                        help="Models configuration JSON with the fallback list (default: models.json)")
+    parser.add_argument("--no-fallback", action="store_true",
+                        help="Use ONLY the model given on the command line (e.g. for the benchmark)")
     parser.add_argument("--no-tools", action="store_true",
                         help="Do not start the MCP server (the agent checks its code with asserts)")
     return parser.parse_args()
@@ -49,6 +60,43 @@ def failed_output(task_id: str, error: str) -> SolutionOutput:
         iterations=0, total_requests=0, total_input_tokens=0, total_output_tokens=0,
         total_time_seconds=0.0, system_prompt=SYSTEM_PROMPT, error=error,
     )
+
+
+def command_line_candidate(args: argparse.Namespace, config: ModelsConfig) -> Candidate | None:
+    """The model given with --model-name/--provider-url, if its API key exists.
+
+    Its settings (provider name, extra_body) are taken from models.json when the same
+    provider URL and model appear there.
+    """
+    api_key = os.getenv(args.api_key_env, "")
+    if not api_key:
+        return None
+    provider_name, extra_body = "command-line", {}
+    for name, provider in config.providers.items():
+        if provider.api_url.rstrip("/") == args.provider_url.rstrip("/"):
+            provider_name = name
+            for entry in config.models:
+                if entry.provider == name and entry.model == args.model_name:
+                    extra_body = entry.extra_body
+    return Candidate(provider_name, args.model_name, args.provider_url, api_key,
+                     args.api_key_env, extra_body)
+
+
+def build_llm(args: argparse.Namespace) -> LLMRouter:
+    """The command-line model first, then (unless --no-fallback) the models.json list."""
+    config = load_models_config(args.models_config)
+    candidates: list[Candidate] = []
+    first = command_line_candidate(args, config)
+    if first is not None:
+        candidates.append(first)
+    if not args.no_fallback:
+        for candidate in build_candidates(config):
+            already_there = any(c.api_url.rstrip("/") == candidate.api_url.rstrip("/")
+                                and c.model == candidate.model and c.key_env == candidate.key_env
+                                for c in candidates)
+            if not already_there:
+                candidates.append(candidate)
+    return LLMRouter(candidates, max_tokens=MAX_TOKENS_PER_CALL, stop=["<end_code>"])
 
 
 def start_mcp_server(task_file: Path) -> McpClientManager | None:
@@ -64,7 +112,7 @@ def start_mcp_server(task_file: Path) -> McpClientManager | None:
 
 
 def solve(args: argparse.Namespace) -> SolutionOutput:
-    """Load the task and the sandbox config, build the agent and run it."""
+    """Load the task and the configs, build the agent and run it."""
     try:
         task = MBPPTaskInput.model_validate_json(args.task_file.read_text())
     except (OSError, ValidationError) as exc:
@@ -75,18 +123,13 @@ def solve(args: argparse.Namespace) -> SolutionOutput:
     except (OSError, ValidationError) as exc:
         return failed_output(str(task.task_id), f"Could not read sandbox config: {exc}")
 
-    api_key = os.getenv(args.api_key_env)
-    if not api_key:
-        return failed_output(str(task.task_id), f"Missing API key: {args.api_key_env} is not set")
+    try:
+        llm = build_llm(args)
+    except (OSError, ValidationError) as exc:
+        return failed_output(str(task.task_id), f"Could not read models config: {exc}")
+    except NoCandidateError as exc:
+        return failed_output(str(task.task_id), f"Missing API key: {exc}")
 
-    llm = LLMClient(
-        api_url=args.provider_url,
-        api_key=api_key,
-        model_name=args.model_name,
-        max_tokens=MAX_TOKENS_PER_CALL,
-        stop=["<end_code>"],
-        extra_body={"reasoning": {"enabled": False}},
-    )
     limits = AgentLimits(
         max_iterations=args.max_iterations,
         max_input_tokens=args.max_input_tokens,
