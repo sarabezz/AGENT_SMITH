@@ -1,0 +1,24 @@
+{
+  "providers": {
+    "openrouter": {
+      "api_url": "https://openrouter.ai/api/v1",
+      "api_key_envs": ["OPENROUTER_API_KEY", "OPENROUTER_API_KEY_2"]
+    },
+    "groq": {
+      "api_url": "https://api.groq.com/openai/v1",
+      "api_key_envs": ["GROQ_API_KEY", "GROQ_API_KEY_2"]
+    }
+  },
+  "models": [
+    {
+      "provider": "openrouter",
+      "model": "qwen/qwen3.8-27b:free",
+      "extra_body": {"reasoning": {"enabled": false}}
+    },
+    {
+      "provider": "groq",
+      "model": "qwen/qwen3.8-27b",
+      "extra_body": {"reasoning_effort": "none"}
+    }
+  ]
+}
