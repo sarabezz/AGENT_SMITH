@@ -12,13 +12,28 @@
   "models": [
     {
       "provider": "openrouter",
-      "model": "qwen/qwen3.8-27b:free",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "extra_body": {"reasoning": {"enabled": false}}
+    },
+    {
+      "provider": "openrouter",
+      "model": "cohere/north-mini-code:free",
       "extra_body": {"reasoning": {"enabled": false}}
     },
     {
       "provider": "groq",
       "model": "qwen/qwen3.8-27b",
       "extra_body": {"reasoning_effort": "none"}
+    },
+    {
+      "provider": "openrouter",
+      "model": "google/gemma-4-31b-it:free",
+      "extra_body": {"reasoning": {"enabled": false}}
+    },
+    {
+      "provider": "openrouter",
+      "model": "poolside/laguna-s-2.1:free",
+      "extra_body": {"reasoning": {"enabled": false}}
     }
   ]
 }

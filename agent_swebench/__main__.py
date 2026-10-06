@@ -24,7 +24,8 @@ DEFAULT_SANDBOX_CONFIG = REPO_ROOT / "sandbox_template.json"
 MCP_SERVER_FILE = REPO_ROOT / "mcp_tools_swebench.py"
 DEFAULT_LIMITS = AgentLimits(max_iterations=30, max_input_tokens=300_000,
                              max_output_tokens=10_000, max_time_seconds=900.0,
-                             max_observation_chars=MAX_OBSERVATION_CHARS)
+                             max_observation_chars=MAX_OBSERVATION_CHARS,
+                             keep_full_observations=KEEP_FULL_OBSERVATIONS)
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,7 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fix one SWE-bench issue with the agent.")
     parser.add_argument("--task-file", required=True, type=Path, help="Task JSON from the moulinette")
     parser.add_argument("--output", required=True, type=Path, help="Where to write solution.json")
-    parser.add_argument("--model-name", required=True, help="e.g. qwen/qwen3.8-27b:free")
+    parser.add_argument("--model-name", required=True, help="e.g. nvidia/nemotron-3-super-120b-a12b:free")
     parser.add_argument("--provider-url", required=True, help="e.g. https://openrouter.ai/api/v1")
     parser.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
                         help="Name of the environment variable that holds the API key")
@@ -99,9 +100,7 @@ def solve(args: argparse.Namespace) -> SolutionOutput:
         max_output_tokens=args.max_output_tokens,
         max_time_seconds=args.timeout,
         max_observation_chars=MAX_OBSERVATION_CHARS,
-        max_observation_chars=MAX_OBSERVATION_CHARS,
         keep_full_observations=KEEP_FULL_OBSERVATIONS,
-    )
     )
 
     if is_mock(args):                       # fake LLM: no container, no tools (pipeline check only)

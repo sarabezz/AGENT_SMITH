@@ -34,6 +34,7 @@ class AgentLimits:
     max_input_tokens: int = 6_000
     max_output_tokens: int = 1_500
     max_time_seconds: float = 120.0
+    max_observation_chars: int = MAX_OBSERVATION_CHARS   # longer for SWE-bench (files, test logs)
     keep_full_observations: int | None = None   # None = never shorten; N = keep the last N complete
 
 
@@ -148,7 +149,7 @@ class Agent:
             extracted = extract_code(reply.text)
             output = sandbox.run(extracted.code) if extracted is not None else ""
             observation = build_observation(extracted, output, reply, max_tokens,
-                            self.limits.max_observation_chars)
+                                            self.limits.max_observation_chars)
             log_step(step, reply, extracted)
 
             # 4. Record this step (the FULL reply is always logged, even if incomplete)
@@ -214,13 +215,3 @@ class Agent:
         if self.limits.max_output_tokens - total_output < MIN_OUTPUT_TOKENS:
             return "Stopped: the output token budget is exhausted"
         return None
-
-
-@dataclass
-class AgentLimits:
-    """Hard limits for one task. Defaults: MBPP limits checked by the moulinette."""
-    max_iterations: int = 10
-    max_input_tokens: int = 6_000
-    max_output_tokens: int = 1_500
-    max_time_seconds: float = 120.0
-    max_observation_chars: int = MAX_OBSERVATION_CHARS   # longer for SWE-bench (files, test logs)
