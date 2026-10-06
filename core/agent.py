@@ -23,6 +23,8 @@ UNCLOSED_BLOCK_NOTE = (
     "Write the COMPLETE code again and close the block with ``` followed by <end_code>."
 )
 INCOMPLETE_PLACEHOLDER = "[My previous reply was incomplete and was removed.]"
+OLD_OBSERVATION_CHARS = 400   # older observations are shortened to this size (if compaction is on)
+SHORTENED_NOTE = "\n[older observation shortened to save tokens; call the tool again if you need it]"
 
 
 @dataclass
@@ -32,6 +34,7 @@ class AgentLimits:
     max_input_tokens: int = 6_000
     max_output_tokens: int = 1_500
     max_time_seconds: float = 120.0
+    keep_full_observations: int | None = None   # None = never shorten; N = keep the last N complete
 
 
 def is_incomplete(reply: LLMResponse, extracted: ExtractedCode | None) -> bool:
@@ -40,7 +43,8 @@ def is_incomplete(reply: LLMResponse, extracted: ExtractedCode | None) -> bool:
 
 
 def build_observation(extracted: ExtractedCode | None, output: str,
-                      reply: LLMResponse, max_tokens: int) -> str:
+                      reply: LLMResponse, max_tokens: int,
+                      max_chars: int = MAX_OBSERVATION_CHARS) -> str:
     """Turn what happened into the message the LLM will read. It must never have to guess."""
     notes: list[str] = []
     if reply.was_truncated:
@@ -57,14 +61,27 @@ def build_observation(extracted: ExtractedCode | None, output: str,
         notes.append(UNCLOSED_BLOCK_NOTE)
     if output == "":
         output = NO_OUTPUT_MESSAGE
-    if len(output) > MAX_OBSERVATION_CHARS:
-        output = (output[:MAX_OBSERVATION_CHARS]
-                  + f"\n[output truncated: only the first {MAX_OBSERVATION_CHARS} characters are shown]")
+    if len(output) > max_chars:
+        output = (output[:max_chars]
+                  + f"\n[output truncated: only the first {max_chars} characters are shown]")
 
     observation = "Observation: " + output
     if notes:
         observation += "\nNote: " + " ".join(notes)
     return observation
+
+
+def compact_history(messages: list[dict[str, str]], keep_full: int) -> None:
+    """Shorten every observation except the last `keep_full` ones (in place).
+
+    The task, the system prompt and the model's own code are never touched.
+    """
+    observation_indexes = [i for i, m in enumerate(messages)
+                           if m["role"] == "user" and m["content"].startswith("Observation:")]
+    for i in observation_indexes[:max(len(observation_indexes) - keep_full, 0)]:
+        content = messages[i]["content"]
+        if len(content) > OLD_OBSERVATION_CHARS and not content.endswith(SHORTENED_NOTE):
+            messages[i] = {"role": "user", "content": content[:OLD_OBSERVATION_CHARS] + SHORTENED_NOTE}
 
 
 def log_step(step: int, reply: LLMResponse, extracted: ExtractedCode | None) -> None:
@@ -130,7 +147,8 @@ class Agent:
             # 2. Extract the code and 3. OBSERVATION: run it in the sandbox
             extracted = extract_code(reply.text)
             output = sandbox.run(extracted.code) if extracted is not None else ""
-            observation = build_observation(extracted, output, reply, max_tokens)
+            observation = build_observation(extracted, output, reply, max_tokens,
+                            self.limits.max_observation_chars)
             log_step(step, reply, extracted)
 
             # 4. Record this step (the FULL reply is always logged, even if incomplete)
@@ -162,6 +180,8 @@ class Agent:
                 assistant_tokens = reply.output_tokens
             messages.append({"role": "assistant", "content": assistant_content})
             messages.append({"role": "user", "content": observation})
+            if self.limits.keep_full_observations is not None:
+                compact_history(messages, self.limits.keep_full_observations)
             next_input_estimate = (reply.input_tokens + assistant_tokens
                                    + estimate_tokens(observation) + TEMPLATE_MARGIN_TOKENS)
 
@@ -194,3 +214,13 @@ class Agent:
         if self.limits.max_output_tokens - total_output < MIN_OUTPUT_TOKENS:
             return "Stopped: the output token budget is exhausted"
         return None
+
+
+@dataclass
+class AgentLimits:
+    """Hard limits for one task. Defaults: MBPP limits checked by the moulinette."""
+    max_iterations: int = 10
+    max_input_tokens: int = 6_000
+    max_output_tokens: int = 1_500
+    max_time_seconds: float = 120.0
+    max_observation_chars: int = MAX_OBSERVATION_CHARS   # longer for SWE-bench (files, test logs)

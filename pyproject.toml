@@ -22,4 +22,4 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["core", "agent_mbpp"]
+packages = ["core", "agent_mbpp", "agent_swebench"]

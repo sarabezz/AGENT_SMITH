@@ -1,6 +1,5 @@
 """CLI: python -m agent_mbpp --task-file task.json --output solution.json --model-name ... --provider-url ..."""
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -9,15 +8,9 @@ from pydantic import ValidationError
 
 from agent_mbpp.prompts import SYSTEM_PROMPT, build_system_prompt, build_task_prompt
 from core.agent import Agent, AgentLimits
-from core.llm_router import LLMRouter, NoCandidateError
-from core.mock_llm import MOCK_ENV, MOCK_NAME, MockLLM
-from core.model_config import (
-    DEFAULT_MODELS_CONFIG,
-    Candidate,
-    ModelsConfig,
-    build_candidates,
-    load_models_config,
-)
+from core.llm_router import NoCandidateError
+from core.llm_setup import build_llm
+from core.model_config import DEFAULT_MODELS_CONFIG
 from core.models_public import MBPPTaskInput, SandboxConfig, SolutionOutput
 from core.tool_bridge import tool_specs_from, tools_manual
 from mcp_client import McpClientManager
@@ -63,48 +56,6 @@ def failed_output(task_id: str, error: str) -> SolutionOutput:
     )
 
 
-def command_line_candidate(args: argparse.Namespace, config: ModelsConfig) -> Candidate | None:
-    """The model given with --model-name/--provider-url, if its API key exists.
-
-    Its settings (provider name, extra_body) are taken from models.json when the same
-    provider URL and model appear there.
-    """
-    api_key = os.getenv(args.api_key_env, "")
-    if not api_key:
-        return None
-    provider_name, extra_body = "command-line", {}
-    for name, provider in config.providers.items():
-        if provider.api_url.rstrip("/") == args.provider_url.rstrip("/"):
-            provider_name = name
-            for entry in config.models:
-                if entry.provider == name and entry.model == args.model_name:
-                    extra_body = entry.extra_body
-    return Candidate(provider_name, args.model_name, args.provider_url, api_key,
-                     args.api_key_env, extra_body)
-
-
-def build_llm(args: argparse.Namespace) -> LLMRouter | MockLLM:
-    """The command-line model first, then (unless --no-fallback) the models.json list.
-
-    With AGENT_MOCK_LLM=1 (or --provider-url mock) a fake LLM is used: no API key needed.
-    """
-    if os.getenv(MOCK_ENV) == "1" or args.provider_url == MOCK_NAME:
-        return MockLLM(max_tokens=MAX_TOKENS_PER_CALL)
-    config = load_models_config(args.models_config)
-    candidates: list[Candidate] = []
-    first = command_line_candidate(args, config)
-    if first is not None:
-        candidates.append(first)
-    if not args.no_fallback:
-        for candidate in build_candidates(config):
-            already_there = any(c.api_url.rstrip("/") == candidate.api_url.rstrip("/")
-                                and c.model == candidate.model and c.key_env == candidate.key_env
-                                for c in candidates)
-            if not already_there:
-                candidates.append(candidate)
-    return LLMRouter(candidates, max_tokens=MAX_TOKENS_PER_CALL, stop=["<end_code>"])
-
-
 def start_mcp_server(task_file: Path) -> McpClientManager | None:
     """Start mcp_tools_mbpp.py for this task. If it fails, the agent works without tools."""
     try:
@@ -130,7 +81,7 @@ def solve(args: argparse.Namespace) -> SolutionOutput:
         return failed_output(str(task.task_id), f"Could not read sandbox config: {exc}")
 
     try:
-        llm = build_llm(args)
+        llm = build_llm(args, max_tokens=MAX_TOKENS_PER_CALL)
     except (OSError, ValidationError) as exc:
         return failed_output(str(task.task_id), f"Could not read models config: {exc}")
     except NoCandidateError as exc:
