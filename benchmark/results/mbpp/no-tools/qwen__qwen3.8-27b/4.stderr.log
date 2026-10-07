@@ -1,0 +1,5 @@
+[step 1] in=536 out=188 finish_reason='stop' retries=0 code_found=True unclosed_block=False
+[step 2] in=758 out=197 finish_reason='stop' retries=0 code_found=True unclosed_block=False
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 3] in=968 out=35 finish_reason='stop' retries=1 code_found=True unclosed_block=False

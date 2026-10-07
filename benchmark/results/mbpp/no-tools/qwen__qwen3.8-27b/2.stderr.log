@@ -1,0 +1,2 @@
+[step 1] in=503 out=154 finish_reason='stop' retries=0 code_found=True unclosed_block=False
+[step 2] in=672 out=33 finish_reason='stop' retries=0 code_found=True unclosed_block=False
