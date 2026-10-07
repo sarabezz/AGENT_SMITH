@@ -1,0 +1,13 @@
+{
+  "task_id": 6,
+  "task_definition": "Write a python function to check whether the two numbers differ at one bit position only or not.",
+  "function_definition": "def differ_At_One_Bit_Pos(a,b):",
+  "test_imports": [],
+  "test_list": [
+    "assert differ_At_One_Bit_Pos(15,8) == False",
+    "assert differ_At_One_Bit_Pos(2,4) == False",
+    "assert differ_At_One_Bit_Pos(2, 3) == True",
+    "assert differ_At_One_Bit_Pos(5, 1) == True",
+    "assert differ_At_One_Bit_Pos(1, 5) == True"
+  ]
+}

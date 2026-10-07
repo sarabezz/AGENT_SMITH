@@ -1,0 +1,10 @@
+{
+  "task_id": 4,
+  "task_definition": "Write a function to find the largest integers from a given list of numbers using heap queue algorithm.",
+  "function_definition": "def heap_queue_largest(nums,n):",
+  "test_imports": [],
+  "test_list": [
+    "assert heap_queue_largest( [25, 35, 22, 85, 14, 65, 75, 22, 58],2)==[85, 75]",
+    "assert heap_queue_largest( [25, 35, 22, 85, 14, 65, 75, 22, 58],5)==[85, 75, 65, 58, 35]"
+  ]
+}
