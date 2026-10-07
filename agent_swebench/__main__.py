@@ -68,11 +68,18 @@ def run_agent(args: argparse.Namespace, task: SWEBenchTaskInput, llm: object,
     agent = Agent(llm=llm, system_prompt=build_system_prompt(manual), benchmark="swebench",
                   limits=limits, sandbox_config=sandbox_config, mcp_client=mcp_client)
     result = agent.run(task_id=task.instance_id, task_prompt=build_task_prompt(task))
-    if result.success and mcp_client is not None:
-        patch = mcp_client.call_tool("get_patch", {})
-        if patch.startswith("diff --git"):           # the truth is what changed in /testbed
-            result = result.model_copy(update={"solution": patch})
-    return result
+    if mcp_client is None:
+        return result
+    patch = mcp_client.call_tool("get_patch", {})
+    if not patch.startswith("diff --git"):           # nothing was changed in /testbed
+        return result
+    if result.success:                               # the truth is what changed in /testbed
+        return result.model_copy(update={"solution": patch})
+    # Auto-submit: the budget ran out but the repository WAS changed. The diff is submitted
+    # so it can be graded; success stays False (the model never called final_answer).
+    note = "auto-submitted the current git diff (final_answer was never called)"
+    return result.model_copy(update={"solution": patch,
+                                    "error": f"{result.error} | {note}" if result.error else note})
 
 
 def solve(args: argparse.Namespace) -> SolutionOutput:

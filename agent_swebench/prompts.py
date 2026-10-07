@@ -18,6 +18,8 @@ Rules:
 - Read big files in parts (start_line / end_line), never the whole file at once.
 - edit_file needs the EXACT old text: copy it from read_file WITHOUT the line numbers.
 - Make the smallest change that fixes the issue. Do not modify or add test files.
+- To finish you MUST call final_answer(...) inside a code block: writing "final answer" or
+  "the task is complete" in your Thought does nothing, and the task is not submitted.
 
 Method:
 1. Reproduce the bug with run_command (e.g. a python -c one-liner from the issue).

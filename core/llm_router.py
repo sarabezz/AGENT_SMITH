@@ -2,6 +2,7 @@
 import sys
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 from openai import APIStatusError, AuthenticationError, NotFoundError, PermissionDeniedError
 
@@ -11,6 +12,9 @@ from core.model_config import Candidate
 # Errors that will never go away for this candidate (bad key, model not found, no access)
 PERMANENT_ERRORS = (AuthenticationError, PermissionDeniedError, NotFoundError)
 COOLDOWN_SECONDS = 20.0     # a rate-limited candidate is skipped for this long
+# Words that mean a 429 is a DAILY quota (OpenRouter "free-models-per-day", Groq "requests per
+# day (RPD)"): waiting a few seconds will not help, so the candidate is disabled like a 401
+DAILY_LIMIT_MARKERS = ("per-day", "per day", "daily")
 MAX_ROUNDS = 3              # how many times we go through the whole list before giving up
 
 
@@ -29,6 +33,14 @@ class _Slot:
 
     def __post_init__(self) -> None:
         self.label = f"{self.candidate.provider}/{self.candidate.model} ({self.candidate.key_env})"
+
+
+def is_daily_limit(exc: Exception) -> bool:
+    """True if the error is a 429 caused by a per-day quota (it only resets the next day)."""
+    if getattr(exc, "status_code", None) != 429:
+        return False
+    text = str(exc).lower()
+    return any(marker in text for marker in DAILY_LIMIT_MARKERS)
 
 
 def _log(message: str) -> None:
@@ -76,11 +88,15 @@ class LLMRouter:
                     _log(f"{slot.label} disabled ({type(exc).__name__}): {exc}")
                     continue
                 except RETRYABLE_ERRORS + (APIStatusError,) as exc:
+                    failed_requests += 1
+                    last_error = exc
+                    if is_daily_limit(exc):             # quota for today is used up
+                        slot.disabled = True
+                        _log(f"{slot.label} disabled (daily quota used up)")
+                        continue
                     # temporary (429, timeout, 5xx) or provider-specific (e.g. 400 for an unknown
                     # extra_body option, 402 for a paid model): skip it for a while
                     slot.cooldown_until = time.perf_counter() + COOLDOWN_SECONDS
-                    failed_requests += 1
-                    last_error = exc
                     _log(f"{slot.label} failed ({type(exc).__name__}), trying the next one")
                     continue
                 self.api_url = slot.candidate.api_url

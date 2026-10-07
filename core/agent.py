@@ -25,6 +25,12 @@ UNCLOSED_BLOCK_NOTE = (
 INCOMPLETE_PLACEHOLDER = "[My previous reply was incomplete and was removed.]"
 OLD_OBSERVATION_CHARS = 400   # older observations are shortened to this size (if compaction is on)
 SHORTENED_NOTE = "\n[older observation shortened to save tokens; call the tool again if you need it]"
+REPEATED_REPLY_NOTE = (
+    "You sent exactly the same reply as in the previous step, so nothing new happened. "
+    "Do something different. If the task is already solved, submit it NOW by calling "
+    "final_answer(...) inside the code block (writing 'final answer' in text does nothing)."
+)
+LAST_STEPS_WARNING = 3        # from this many steps left, the model is told to submit
 
 
 @dataclass
@@ -43,9 +49,18 @@ def is_incomplete(reply: LLMResponse, extracted: ExtractedCode | None) -> bool:
     return reply.was_truncated or (extracted is not None and extracted.malformed)
 
 
+def budget_note(steps_left: int) -> str | None:
+    """Warn the model when only a few steps are left, so it submits instead of running out."""
+    if steps_left > LAST_STEPS_WARNING or steps_left <= 0:
+        return None
+    return (f"Only {steps_left} step(s) left. If you have a solution, submit it NOW by calling "
+            "final_answer(...) inside the code block.")
+
+
 def build_observation(extracted: ExtractedCode | None, output: str,
                       reply: LLMResponse, max_tokens: int,
-                      max_chars: int = MAX_OBSERVATION_CHARS) -> str:
+                      max_chars: int = MAX_OBSERVATION_CHARS,
+                      extra_notes: list[str] | None = None) -> str:
     """Turn what happened into the message the LLM will read. It must never have to guess."""
     notes: list[str] = []
     if reply.was_truncated:
@@ -56,10 +71,12 @@ def build_observation(extracted: ExtractedCode | None, output: str,
     if extracted is None:
         if not reply.was_truncated:
             notes.append(NO_CODE_MESSAGE)
+        notes += extra_notes or []
         return "Observation: No code was executed. " + " ".join(notes)
 
     if extracted.malformed and not reply.was_truncated:
         notes.append(UNCLOSED_BLOCK_NOTE)
+    notes += extra_notes or []
     if output == "":
         output = NO_OUTPUT_MESSAGE
     if len(output) > max_chars:
@@ -127,6 +144,7 @@ class Agent:
         total_requests = 0
         next_input_estimate = estimate_tokens(self.system_prompt + task_prompt) + TEMPLATE_MARGIN_TOKENS
         error: str | None = None
+        previous_reply = ""
 
         for step in range(1, self.limits.max_iterations + 1):
             # 0. Can we afford another LLM call? How many output tokens are left?
@@ -148,8 +166,15 @@ class Agent:
             # 2. Extract the code and 3. OBSERVATION: run it in the sandbox
             extracted = extract_code(reply.text)
             output = sandbox.run(extracted.code) if extracted is not None else ""
+            extra_notes = []
+            if reply.text.strip() and reply.text.strip() == previous_reply:
+                extra_notes.append(REPEATED_REPLY_NOTE)        # the model is stuck in a loop
+            note = budget_note(self.limits.max_iterations - step)
+            if note is not None:
+                extra_notes.append(note)
+            previous_reply = reply.text.strip()
             observation = build_observation(extracted, output, reply, max_tokens,
-                                            self.limits.max_observation_chars)
+                                            self.limits.max_observation_chars, extra_notes)
             log_step(step, reply, extracted)
 
             # 4. Record this step (the FULL reply is always logged, even if incomplete)
