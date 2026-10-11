@@ -1,0 +1,81 @@
+{
+  "task_id": "pydata__xarray-4629",
+  "benchmark": "swebench",
+  "success": true,
+  "solution": "diff --git a/xarray/core/merge.py b/xarray/core/merge.py\nindex ca4e29b6..dff00804 100644\n--- a/xarray/core/merge.py\n+++ b/xarray/core/merge.py\n@@ -501,7 +501,7 @@ def merge_attrs(variable_attrs, combine_attrs):\n     if combine_attrs == \"drop\":\n         return {}\n     elif combine_attrs == \"override\":\n-        return variable_attrs[0]\n+        return dict(variable_attrs[0])\n     elif combine_attrs == \"no_conflicts\":\n         result = dict(variable_attrs[0])\n         for attrs in variable_attrs[1:]:\n",
+  "iterations": 5,
+  "total_requests": 7,
+  "total_input_tokens": 11731,
+  "total_output_tokens": 399,
+  "total_time_seconds": 50.71795117500005,
+  "steps": [
+    {
+      "step": 1,
+      "input_tokens": 1799,
+      "output_tokens": 56,
+      "request_time_ms": 565.7585840001502,
+      "timestamp": "2026-10-11T11:59:04.097443",
+      "api_url": "https://api.groq.com/openai/v1",
+      "model_name": "qwen/qwen3.8-27b",
+      "llm_output": "Thought: Let me look at the merge.py file around the line mentioned in the issue.\n\n````python\nprint(read_file(\"xarray/core/merge.py\", start_line=490, end_line=520))\n```",
+      "sandbox_input": "print(read_file(\"xarray/core/merge.py\", start_line=490, end_line=520))",
+      "sandbox_output": "  490 |                 \"not a 1D variable along that dimension. This is disallowed \"\n  491 |                 \"by the xarray data model.\" % coord_name\n  492 |             )\n  493 | \n  494 | \n  495 | def merge_attrs(variable_attrs, combine_attrs):\n  496 |     \"\"\"Combine attributes from different variables according to combine_attrs\"\"\"\n  497 |     if not variable_attrs:\n  498 |         # no attributes to merge\n  499 |         return None\n  500 | \n  501 |     if combine_attrs == \"drop\":\n  502 |         return {}\n  503 |     elif combine_attrs == \"override\":\n  504 |         return variable_attrs[0]\n  505 |     elif combine_attrs == \"no_conflicts\":\n  506 |         result = dict(variable_attrs[0])\n  507 |         for attrs in variable_attrs[1:]:\n  508 |             try:\n  509 |                 result = compat_dict_union(result, attrs)\n  510 |             except ValueError:\n  511 |                 raise MergeError(\n  512 |                     \"combine_attrs='no_conflicts', but some values are not \"\n  513 |                     \"the same. Merging %s with %s\" % (str(result), str(attrs))\n  514 |                 )\n  515 |         return result\n  516 |     elif combine_attrs == \"identical\":\n  517 |         result = dict(variable_attrs[0])\n  518 |         for attrs in variable_attrs[1:]:\n  519 |             if not dict_equiv(result, attrs):\n  520 |                 raise MergeError(\n[lines 490-520 of 938]\n",
+      "retries": 0
+    },
+    {
+      "step": 2,
+      "input_tokens": 2326,
+      "output_tokens": 106,
+      "request_time_ms": 541.6615310000452,
+      "timestamp": "2026-10-11T11:59:05.052971",
+      "api_url": "https://api.groq.com/openai/v1",
+      "model_name": "qwen/qwen3.8-27b",
+      "llm_output": "The bug is on line 504: `return variable_attrs[0]` returns a reference to the first object's attrs instead of a copy. Changing it to `return dict(variable_attrs[0])` fixes it.\n\n````python\nprint(edit_file(\"xarray/core/merge.py\",\n\"    elif combine_attrs == \\\"override\\\":\\n        return variable_attrs[0]\",\n\"    elif combine_attrs == \\\"override\\\":\\n        return dict(variable_attrs[0])\"))\n```",
+      "sandbox_input": "print(edit_file(\"xarray/core/merge.py\",\n\"    elif combine_attrs == \\\"override\\\":\\n        return variable_attrs[0]\",\n\"    elif combine_attrs == \\\"override\\\":\\n        return dict(variable_attrs[0])\"))",
+      "sandbox_output": "Edited xarray/core/merge.py: 1 replacement\n",
+      "retries": 0
+    },
+    {
+      "step": 3,
+      "input_tokens": 2459,
+      "output_tokens": 164,
+      "request_time_ms": 614.939368000023,
+      "timestamp": "2026-10-11T11:59:07.426180",
+      "api_url": "https://api.groq.com/openai/v1",
+      "model_name": "qwen/qwen3.8-27b",
+      "llm_output": "Let me verify the fix with the example from the issue and run the tests.\n\n````python\nprint(run_command(\"\"\"python -c \"\nimport xarray as xr\nxds1 = xr.Dataset(attrs={'a':'b'})\nxds2 = xr.Dataset(attrs={'a':'c'})\nxds3 = xr.merge([xds1, xds2], combine_attrs='override')\nxds3.attrs['a'] = 'd'\nprint('a1:', xds1.attrs['a'], 'a2:', xds2.attrs['a'], 'a3:', xds3.attrs['a'])\nassert xds1.attrs['a'] == 'b', 'BUG: xds1 was modified'\nprint('OK')\n\"\n\"\"\"))\n```",
+      "sandbox_input": "print(run_command(\"\"\"python -c \"\nimport xarray as xr\nxds1 = xr.Dataset(attrs={'a':'b'})\nxds2 = xr.Dataset(attrs={'a':'c'})\nxds3 = xr.merge([xds1, xds2], combine_attrs='override')\nxds3.attrs['a'] = 'd'\nprint('a1:', xds1.attrs['a'], 'a2:', xds2.attrs['a'], 'a3:', xds3.attrs['a'])\nassert xds1.attrs['a'] == 'b', 'BUG: xds1 was modified'\nprint('OK')\n\"\n\"\"\"))",
+      "sandbox_output": "exit code 0\na1: b a2: c a3: d\nOK\n\n",
+      "retries": 0
+    },
+    {
+      "step": 4,
+      "input_tokens": 2336,
+      "output_tokens": 36,
+      "request_time_ms": 638.6765460001698,
+      "timestamp": "2026-10-11T11:59:31.901193",
+      "api_url": "https://api.groq.com/openai/v1",
+      "model_name": "qwen/qwen3.8-27b",
+      "llm_output": "The fix works. Let me run the existing merge tests to make sure nothing broke.\n\n````python\nprint(run_tests(\"xarray/tests/test_merge.py\"))\n```",
+      "sandbox_input": "print(run_tests(\"xarray/tests/test_merge.py\"))",
+      "sandbox_output": "exit code 0\n................................                                         [100%]\n=============================== warnings summary ===============================\nxarray/__init__.py:1\n  /testbed/xarray/__init__.py:1: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html\n    import pkg_resources\n\nxarray/core/dask_array_compat.py:61\nxarray/core/dask_array_compat.py:61\n  /testbed/xarray/core/dask_array_compat.py:61: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.\n    if LooseVersion(dask_version) > LooseVersion(\"2.9.0\"):\n\nxarray/core/pdcompat.py:45\n  /testbed/xarray/core/pdcompat.py:45: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.\n    if LooseVersion(pd.__version__) < \"0.25.0\":\n\n../opt/miniconda3/envs/testbed/lib/python3.10/site-packages/setuptools/_distutils/version.py:345\n  /opt/miniconda3/envs/testbed/lib/python3.10/site-packages/setuptools/_distutils/version.py:345: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.\n    other = LooseVersion(other)\n\nxarray/tests/__init__.py:59\nxarray/tests/__init__.py:59\nxarray/tests/__init__.py:59\nxarray/tests/__init__.py:59\n  /testbed/xarray/tests/__init__.py:59: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.\n    return version.LooseVersion(vstring)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n32 passed, 9 warnings in 3.95s\n\n",
+      "retries": 1
+    },
+    {
+      "step": 5,
+      "input_tokens": 2811,
+      "output_tokens": 37,
+      "request_time_ms": 585.8602549999432,
+      "timestamp": "2026-10-11T11:59:52.900102",
+      "api_url": "https://api.groq.com/openai/v1",
+      "model_name": "qwen/qwen3.8-27b",
+      "llm_output": "All tests pass and the fix works. Let me get the final patch.\n\n````python\npatch = get_patch()\nprint(patch)\nfinal_answer(patch)\n```",
+      "sandbox_input": "patch = get_patch()\nprint(patch)\nfinal_answer(patch)",
+      "sandbox_output": "diff --git a/xarray/core/merge.py b/xarray/core/merge.py\nindex ca4e29b6..dff00804 100644\n--- a/xarray/core/merge.py\n+++ b/xarray/core/merge.py\n@@ -501,7 +501,7 @@ def merge_attrs(variable_attrs, combine_attrs):\n     if combine_attrs == \"drop\":\n         return {}\n     elif combine_attrs == \"override\":\n-        return variable_attrs[0]\n+        return dict(variable_attrs[0])\n     elif combine_attrs == \"no_conflicts\":\n         result = dict(variable_attrs[0])\n         for attrs in variable_attrs[1:]:\n\n",
+      "retries": 1
+    }
+  ],
+  "system_prompt": "You are an expert software engineer fixing a bug in a large Python repository.\nThe repository is checked out at the commit where the bug exists. You work through tools.\n\nOn each turn, respond in this exact format:\nThought: <1-3 short sentences about what to do next>\n``````python\n<python code to run>\n`````<end_code>\n\nRules:\n- Write exactly ONE code block per turn, then stop. Never write the Observation yourself.\n- Your code is executed; you receive what it printed as \"Observation:\" in the next message.\n- Tools return strings: always print() their result, otherwise you see nothing.\n- Variables persist between turns.\n- Read big files in parts (start_line / end_line), never the whole file at once.\n- edit_file needs the EXACT old text: copy it from read_file WITHOUT the line numbers.\n- Make the smallest change that fixes the issue. Do not modify or add test files.\n- To finish you MUST call final_answer(...) inside a code block: writing \"final answer\" or\n  \"the task is complete\" in your Thought does nothing, and the task is not submitted.\n\nMethod:\n1. Reproduce the bug with run_command (e.g. a python -c one-liner from the issue).\n2. Find the code responsible with search_code and read_file.\n3. Fix it with edit_file.\n4. Reproduce again to check the fix, and run the existing tests of that module with run_tests.\n5. Submit: patch = get_patch(); print(patch); final_answer(patch)\n\nYou can call these tools as normal Python functions. Each one returns a string.\nYou can pass a function you defined as an argument: its source code is sent.\n\n- read_file(path: str, start_line: int = None, end_line: int = None) -> str\n    Read a file of the repository, with line numbers.\n\n    `path` is relative to the repository root. Use start_line/end_line to read a part\n    of a long file (end_line 0 = until the end). At most 300 lines are returned per call.\n- list_files(path: str = None) -> str\n    List the files and folders inside a folder of the repository (folders end with '/').\n- search_code(pattern: str, path: str = None) -> str\n    Search a pattern (extended regular expression, like grep -E) in the .py files.\n\n    Returns 'file:line: text' for each match (at most 50).\n- edit_file(path: str, old_text: str, new_text: str) -> str\n    Replace `old_text` by `new_text` in a file of the repository.\n\n    `old_text` must appear EXACTLY ONCE in the file (copy it with its indentation);\n    include more surrounding lines if it appears several times.\n- run_command(command: str) -> str\n    Run a shell command in the repository root (e.g. a python one-liner that reproduces the bug).\n\n    Returns the exit code and the output (long outputs are shortened). Timeout: 300 s.\n- run_tests(path: str) -> str\n    Run the tests of one test file or folder of the repository (e.g. 'sympy/core/tests/test_symbol.py').\n\n    Uses the project's own test runner (bin/test for sympy, pytest otherwise).\n    Returns the exit code and the end of the output, where the summary is.\n- get_patch() -> str\n    The git diff of every change made so far to the repository files: this is the solution to submit.\n\nExample of one turn:\nThought: I look for the definition of the function mentioned in the issue.\n````python\nprint(search_code(r\"^def symbols\", \"sympy/core\"))\n```<end_code>\n",
+  "error": null,
+  "timestamp": "2026-10-11T11:59:52.900125"
+}

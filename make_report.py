@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from statistics import mean
 
+from run_benchmark import is_finished
+
 REPO_ROOT = Path(__file__).resolve().parent
 BENCHMARK_DIR = REPO_ROOT / "benchmark"
 DEFAULT_MOULINETTE = REPO_ROOT.parent / "moulinette"
@@ -192,7 +194,11 @@ def main() -> None:
         sys.exit(f"Error: no results in {results_dir}")
 
     runs = []
+    unfinished = 0
     for result_file in files:
+        if not is_finished(result_file):        # the LLM was never available: not a real result
+            unfinished += 1
+            continue
         correct = cached_verdict(result_file)
         if correct is None and args.validate:
             benchmark = result_file.parents[2].name
@@ -204,7 +210,8 @@ def main() -> None:
     args.output.write_text(build_report(runs))
     not_validated = sum(r.correct is None for r in runs)
     print(f"{len(runs)} run(s) -> {args.output}"
-          + (f" ({not_validated} not validated: use --validate)" if not_validated else ""))
+          + (f" ({not_validated} not validated: use --validate)" if not_validated else "")
+          + (f" ({unfinished} unfinished run(s) left out)" if unfinished else ""))
 
 
 if __name__ == "__main__":

@@ -51,11 +51,18 @@ Submitted = the agent called final_answer (`auto` = SWE-bench diff auto-submitte
 
 | Model | Runs | Submitted | Correct | Avg iterations | Avg input tokens | Avg output tokens | Avg time (s) |
 |---|---|---|---|---|---|---|---|
-| nvidia/nemotron-3-super-120b-a12b:free | 2 | 2/2 | 2/2 | 23.0 | 87,442 | 2,373 | 63.6 |
+| cohere/north-mini-code:free | 1 | 1/1 | 1/1 | 18.0 | 69,986 | 6,732 | 123.8 |
+| nvidia/nemotron-3-super-120b-a12b:free | 3 | 3/3 | 3/3 | 24.7 | 101,311 | 2,788 | 75.3 |
+| qwen/qwen3.8-27b | 3 | 2/3 | 2/3 | 16.3 | 45,304 | 1,155 | 384.2 |
 
 ### Per run
 
 | Model | Task | Submitted | Correct | Iterations | Requests | Input tokens | Output tokens | Biggest request (tokens) | Avg request (ms) | Time (s) |
 |---|---|---|---|---|---|---|---|---|---|---|
+| cohere/north-mini-code:free | pydata__xarray-4629 | yes | ✅ | 18 | 18 | 69,986 | 6,732 | 5,875 | 5,893 | 123.8 |
 | nvidia/nemotron-3-super-120b-a12b:free | pydata__xarray-4629 | yes | ✅ | 18 | 18 | 72,349 | 2,246 | 6,224 | 1,644 | 40.8 |
+| nvidia/nemotron-3-super-120b-a12b:free | sympy__sympy-14711 | yes | ✅ | 28 | 28 | 129,047 | 3,617 | 8,286 | 1,830 | 98.9 |
 | nvidia/nemotron-3-super-120b-a12b:free | sympy__sympy-23534 | yes | ✅ | 28 | 30 | 102,536 | 2,500 | 5,730 | 1,326 | 86.4 |
+| qwen/qwen3.8-27b | pydata__xarray-4629 | yes | ✅ | 5 | 7 | 11,731 | 399 | 2,811 | 589 | 50.7 |
+| qwen/qwen3.8-27b | sympy__sympy-14711 | no | ❌ | 30 | 64 | 81,690 | 2,137 | 4,311 | 1,253 | 721.6 |
+| qwen/qwen3.8-27b | sympy__sympy-23534 | yes | ✅ | 14 | 32 | 42,491 | 928 | 5,710 | 618 | 380.2 |

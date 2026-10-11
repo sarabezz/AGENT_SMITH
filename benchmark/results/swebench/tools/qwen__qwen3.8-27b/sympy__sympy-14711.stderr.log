@@ -1,0 +1,98 @@
+[step 1] in=1179 out=99 finish_reason='stop' retries=0 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 2] in=1326 out=36 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 3] in=1410 out=62 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[step 4] in=1520 out=71 finish_reason='stop' retries=0 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 5] in=1639 out=29 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 6] in=1716 out=40 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[step 7] in=1804 out=45 finish_reason='stop' retries=0 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 8] in=1897 out=62 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 9] in=2007 out=62 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 10] in=2117 out=75 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 11] in=2240 out=91 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 12] in=2369 out=52 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 13] in=2469 out=83 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 14] in=2600 out=73 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 15] in=2665 out=58 finish_reason='stop' retries=1 code_found=True unclosed_block=True
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 16] in=2754 out=67 finish_reason='stop' retries=2 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 17] in=2869 out=55 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 18] in=2972 out=59 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 19] in=3079 out=92 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 20] in=3142 out=103 finish_reason='stop' retries=2 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 21] in=3293 out=107 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 22] in=3377 out=31 finish_reason='stop' retries=2 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 23] in=3456 out=106 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 24] in=3537 out=265 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 25] in=3786 out=106 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 26] in=3859 out=46 finish_reason='stop' retries=2 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 27] in=3953 out=96 finish_reason='stop' retries=2 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 28] in=4124 out=21 finish_reason='stop' retries=1 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 29] in=4220 out=16 finish_reason='stop' retries=2 code_found=False unclosed_block=None
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] groq/qwen/qwen3.8-27b (GROQ_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[step 30] in=4311 out=29 finish_reason='stop' retries=2 code_found=False unclosed_block=None

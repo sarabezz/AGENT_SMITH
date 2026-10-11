@@ -79,6 +79,8 @@ def is_finished(result_file: Path) -> bool:
         result = json.loads(result_file.read_text())
     except (OSError, ValueError):
         return False                        # missing or broken file: run it
+    if not result.get("iterations"):
+        return False                        # it never really ran (no LLM, no Docker...): redo it
     error = result.get("error") or ""
     return not error.startswith(UNFINISHED_ERRORS)
 
@@ -150,6 +152,9 @@ def main() -> None:
                 print(f"  {status:7} {label} | iterations={result.get('iterations')} "
                       f"time={elapsed:.0f}s")
             else:                           # the LLM was not available: try again another day
+                if (result.get("error") or "").startswith("Docker error"):
+                    sys.exit(f"STOP: {result['error'][:150]}\nIs Docker Desktop open? "
+                             "Nothing was lost: launch the same command again once it is.")
                 counts["unfinished"] += 1
                 exhausted.add(model.provider)
                 print(f"  WAIT  {label} ({(result.get('error') or '')[:80]})")
