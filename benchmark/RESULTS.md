@@ -51,7 +51,7 @@ Submitted = the agent called final_answer (`auto` = SWE-bench diff auto-submitte
 
 | Model | Runs | Submitted | Correct | Avg iterations | Avg input tokens | Avg output tokens | Avg time (s) |
 |---|---|---|---|---|---|---|---|
-| cohere/north-mini-code:free | 1 | 1/1 | 1/1 | 18.0 | 69,986 | 6,732 | 123.8 |
+| cohere/north-mini-code:free | 3 | 2/3 | 2/3 | 24.3 | 84,229 | 7,251 | 131.2 |
 | nvidia/nemotron-3-super-120b-a12b:free | 3 | 3/3 | 3/3 | 24.7 | 101,311 | 2,788 | 75.3 |
 | qwen/qwen3.8-27b | 3 | 2/3 | 2/3 | 16.3 | 45,304 | 1,155 | 384.2 |
 
@@ -60,6 +60,8 @@ Submitted = the agent called final_answer (`auto` = SWE-bench diff auto-submitte
 | Model | Task | Submitted | Correct | Iterations | Requests | Input tokens | Output tokens | Biggest request (tokens) | Avg request (ms) | Time (s) |
 |---|---|---|---|---|---|---|---|---|---|---|
 | cohere/north-mini-code:free | pydata__xarray-4629 | yes | ✅ | 18 | 18 | 69,986 | 6,732 | 5,875 | 5,893 | 123.8 |
+| cohere/north-mini-code:free | sympy__sympy-14711 | no | ❌ | 30 | 30 | 86,746 | 7,373 | 6,046 | 4,480 | 149.6 |
+| cohere/north-mini-code:free | sympy__sympy-23534 | yes | ✅ | 25 | 25 | 95,955 | 7,647 | 6,156 | 4,251 | 120.1 |
 | nvidia/nemotron-3-super-120b-a12b:free | pydata__xarray-4629 | yes | ✅ | 18 | 18 | 72,349 | 2,246 | 6,224 | 1,644 | 40.8 |
 | nvidia/nemotron-3-super-120b-a12b:free | sympy__sympy-14711 | yes | ✅ | 28 | 28 | 129,047 | 3,617 | 8,286 | 1,830 | 98.9 |
 | nvidia/nemotron-3-super-120b-a12b:free | sympy__sympy-23534 | yes | ✅ | 28 | 30 | 102,536 | 2,500 | 5,730 | 1,326 | 86.4 |
