@@ -18,6 +18,7 @@ from core.tool_bridge import ToolCaller, make_bridge
 CODE_FILENAME = "<code block {n}>"      # name of each LLM code block in tracebacks
 POLICY_BLOCKED = "blocked by sandbox security policy"
 POLICY_DENIED = "denied by sandbox policy"
+DEFINITION_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)   # what final_answer can carry
 
 # Builtins the LLM code must never use (see the README for the reason of each one)
 BLOCKED_BUILTINS = (
@@ -144,9 +145,10 @@ class SandboxRuntime:
         self.is_done = True
 
     def _source_of(self, name: str) -> str:
-        """Return the imports plus the latest definition of function `name` in the executed code."""
+        """Return the imports plus the latest definition of `name` AND of every function or
+        class it uses (helpers), taken from the code already executed."""
         imports: list[str] = []
-        definition = ""
+        definitions: dict[str, tuple[str, ast.AST]] = {}     # name -> (source, node), latest wins
         for code in self.executed_code + [self._running_code]:
             try:
                 tree = ast.parse(code)
@@ -157,11 +159,23 @@ class SandboxRuntime:
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
                     if segment not in imports:
                         imports.append(segment)
-                elif isinstance(node, ast.FunctionDef) and node.name == name:
-                    definition = segment
-        if not definition:
+                elif isinstance(node, DEFINITION_NODES):
+                    definitions.pop(node.name, None)          # a redefinition moves to the end
+                    definitions[node.name] = (segment, node)
+        if name not in definitions:
             raise ValueError(f"final_answer: could not find the source code of '{name}'")
-        return "\n".join(imports + [definition])
+        needed: set[str] = set()
+        pending = [name]
+        while pending:                                         # follow the helpers, and theirs
+            current = pending.pop()
+            if current in needed:
+                continue
+            needed.add(current)
+            for node in ast.walk(definitions[current][1]):
+                if isinstance(node, ast.Name) and node.id in definitions:
+                    pending.append(node.id)
+        sources = [source for def_name, (source, _) in definitions.items() if def_name in needed]
+        return "\n".join(imports + sources)
 
     # ---------- Execution ----------
 
