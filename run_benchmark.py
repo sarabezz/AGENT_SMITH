@@ -22,6 +22,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from core.model_config import DEFAULT_MODELS_CONFIG, load_models_config
+from core.llm_router import DAILY_LIMIT_MARKERS
 from core.mock_llm import MOCK_ENV
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -123,7 +124,8 @@ def main() -> None:
 
     print(f"Benchmark {args.benchmark} ({variant}): {len(models)} model(s) x "
           f"{len(task_files)} task(s){'  [MOCK LLM]' if mock else ''}")
-    exhausted: set[str] = set()             # providers whose quota ran out during this launch
+    exhausted: set[str] = set()             # providers whose DAILY quota ran out during this launch
+    busy: set[str] = set()                  # models that failed for another reason (e.g. overloaded)
     counts = {"done": 0, "skipped": 0, "unfinished": 0}
 
     for model in models:
@@ -134,9 +136,14 @@ def main() -> None:
                 counts["skipped"] += 1
                 print(f"  SKIP  {label} (already finished)")
                 continue
-            if (model.key_env is None and not mock) or model.provider in exhausted:
+            if (model.key_env is None and not mock) or model.provider in exhausted or model.model in busy:
                 counts["unfinished"] += 1
-                reason = "no API key" if model.key_env is None else "quota used up"
+                if model.key_env is None and not mock:
+                    reason = "no API key"
+                elif model.provider in exhausted:
+                    reason = "daily quota used up"
+                else:
+                    reason = "model unavailable right now"
                 print(f"  WAIT  {label} ({reason}, will run another day)")
                 continue
             if args.dry_run:
@@ -156,8 +163,12 @@ def main() -> None:
                     sys.exit(f"STOP: {result['error'][:150]}\nIs Docker Desktop open? "
                              "Nothing was lost: launch the same command again once it is.")
                 counts["unfinished"] += 1
-                exhausted.add(model.provider)
-                print(f"  WAIT  {label} ({(result.get('error') or '')[:80]})")
+                error = (result.get("error") or "")
+                if any(marker in error.lower() for marker in DAILY_LIMIT_MARKERS):
+                    exhausted.add(model.provider)   # the whole provider is out for today
+                else:
+                    busy.add(model.model)           # only this model: try the next one
+                print(f"  WAIT  {label} ({error[:80]})")
 
     print(f"Done: {counts['done']} run(s) now, {counts['skipped']} already finished, "
           f"{counts['unfinished']} left for another day. Results in {results_dir}")

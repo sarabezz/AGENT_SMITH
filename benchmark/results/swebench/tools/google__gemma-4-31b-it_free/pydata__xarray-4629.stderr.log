@@ -1,1 +1,5 @@
-[llm] openrouter/google/gemma-4-31b-it:free (OPENROUTER_API_KEY) disabled (daily quota used up)
+[llm] openrouter/google/gemma-4-31b-it:free (OPENROUTER_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] openrouter/google/gemma-4-31b-it:free (OPENROUTER_API_KEY) failed (RateLimitError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] openrouter/google/gemma-4-31b-it:free (OPENROUTER_API_KEY) failed (RateLimitError), trying the next one

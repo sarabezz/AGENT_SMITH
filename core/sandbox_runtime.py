@@ -40,6 +40,24 @@ def _make_blocked(name: str) -> Callable[..., Any]:
         raise PermissionError(f"The builtin '{name}' is {POLICY_BLOCKED}")
     return blocked
 
+def _constant_names(node: ast.AST) -> list[str]:
+    """Names set by a top-level constant (`MOD = 10**9 + 7`), or [] if it is not a constant.
+
+    A constant is an assignment to plain names whose value calls nothing: a value like
+    `result = run_tests(f)` must never be copied into the solution (it would call a tool).
+    """
+    if isinstance(node, ast.Assign):
+        targets, value = node.targets, node.value
+    elif isinstance(node, ast.AnnAssign) and node.value is not None:
+        targets, value = [node.target], node.value
+    else:
+        return []
+    if not all(isinstance(t, ast.Name) for t in targets):
+        return []
+    if any(isinstance(part, ast.Call) for part in ast.walk(value)):
+        return []
+    return [t.id for t in targets]
+
 
 class SandboxRuntime:
     """Run code with a persistent namespace, a built-in final_answer() and security checks."""
@@ -145,8 +163,8 @@ class SandboxRuntime:
         self.is_done = True
 
     def _source_of(self, name: str) -> str:
-        """Return the imports plus the latest definition of `name` AND of every function or
-        class it uses (helpers), taken from the code already executed."""
+        """Return the imports plus the latest definition of `name` AND of every function, class
+        or constant it uses (helpers), taken from the code already executed."""
         imports: list[str] = []
         definitions: dict[str, tuple[str, ast.AST]] = {}     # name -> (source, node), latest wins
         for code in self.executed_code + [self._running_code]:
@@ -159,10 +177,12 @@ class SandboxRuntime:
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
                     if segment not in imports:
                         imports.append(segment)
-                elif isinstance(node, DEFINITION_NODES):
-                    definitions.pop(node.name, None)          # a redefinition moves to the end
-                    definitions[node.name] = (segment, node)
-        if name not in definitions:
+                    continue
+                names = [node.name] if isinstance(node, DEFINITION_NODES) else _constant_names(node)
+                for def_name in names:
+                    definitions.pop(def_name, None)           # a redefinition moves to the end
+                    definitions[def_name] = (segment, node)
+        if name not in definitions or not isinstance(definitions[name][1], DEFINITION_NODES):
             raise ValueError(f"final_answer: could not find the source code of '{name}'")
         needed: set[str] = set()
         pending = [name]
@@ -174,8 +194,12 @@ class SandboxRuntime:
             for node in ast.walk(definitions[current][1]):
                 if isinstance(node, ast.Name) and node.id in definitions:
                     pending.append(node.id)
-        sources = [source for def_name, (source, _) in definitions.items() if def_name in needed]
+        sources: list[str] = []
+        for def_name, (source, _) in definitions.items():
+            if def_name in needed and source not in sources:  # `A = B = 1` appears only once
+                sources.append(source)
         return "\n".join(imports + sources)
+
 
     # ---------- Execution ----------
 

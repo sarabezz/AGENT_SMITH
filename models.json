@@ -27,12 +27,12 @@
     },
     {
       "provider": "openrouter",
-      "model": "google/gemma-4-31b-it:free",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
       "extra_body": {"reasoning": {"enabled": false}}
     },
     {
       "provider": "openrouter",
-      "model": "poolside/laguna-s-2.1:free",
+      "model": "dots-studio/dots-3-note-preview:free",
       "extra_body": {"reasoning": {"enabled": false}}
     }
   ]
