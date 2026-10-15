@@ -52,7 +52,9 @@ Submitted = the agent called final_answer (`auto` = SWE-bench diff auto-submitte
 | Model | Runs | Submitted | Correct | Avg iterations | Avg input tokens | Avg output tokens | Avg time (s) |
 |---|---|---|---|---|---|---|---|
 | cohere/north-mini-code:free | 3 | 2/3 | 2/3 | 24.3 | 84,229 | 7,251 | 131.2 |
+| dots-studio/dots-3-note-preview:free | 3 | 3/3 | 1/3 | 18.0 | 45,420 | 1,630 | 109.4 |
 | nvidia/nemotron-3-super-120b-a12b:free | 3 | 3/3 | 3/3 | 24.7 | 101,311 | 2,788 | 75.3 |
+| nvidia/nemotron-3-ultra-550b-a55b:free | 1 | 1/1 | 1/1 | 26.0 | 118,342 | 3,125 | 182.5 |
 | qwen/qwen3.8-27b | 3 | 2/3 | 2/3 | 16.3 | 45,304 | 1,155 | 384.2 |
 
 ### Per run
@@ -62,9 +64,13 @@ Submitted = the agent called final_answer (`auto` = SWE-bench diff auto-submitte
 | cohere/north-mini-code:free | pydata__xarray-4629 | yes | ✅ | 18 | 18 | 69,986 | 6,732 | 5,875 | 5,893 | 123.8 |
 | cohere/north-mini-code:free | sympy__sympy-14711 | no | ❌ | 30 | 30 | 86,746 | 7,373 | 6,046 | 4,480 | 149.6 |
 | cohere/north-mini-code:free | sympy__sympy-23534 | yes | ✅ | 25 | 25 | 95,955 | 7,647 | 6,156 | 4,251 | 120.1 |
+| dots-studio/dots-3-note-preview:free | pydata__xarray-4629 | yes | ✅ | 15 | 15 | 47,778 | 1,600 | 4,892 | 3,394 | 95.4 |
+| dots-studio/dots-3-note-preview:free | sympy__sympy-14711 | yes | ❌ | 22 | 22 | 53,850 | 2,244 | 3,720 | 3,246 | 127.5 |
+| dots-studio/dots-3-note-preview:free | sympy__sympy-23534 | yes | ❌ | 17 | 17 | 34,633 | 1,045 | 2,756 | 2,508 | 105.2 |
 | nvidia/nemotron-3-super-120b-a12b:free | pydata__xarray-4629 | yes | ✅ | 18 | 18 | 72,349 | 2,246 | 6,224 | 1,644 | 40.8 |
 | nvidia/nemotron-3-super-120b-a12b:free | sympy__sympy-14711 | yes | ✅ | 28 | 28 | 129,047 | 3,617 | 8,286 | 1,830 | 98.9 |
 | nvidia/nemotron-3-super-120b-a12b:free | sympy__sympy-23534 | yes | ✅ | 28 | 30 | 102,536 | 2,500 | 5,730 | 1,326 | 86.4 |
+| nvidia/nemotron-3-ultra-550b-a55b:free | pydata__xarray-4629 | yes | ✅ | 26 | 26 | 118,342 | 3,125 | 8,058 | 5,332 | 182.5 |
 | qwen/qwen3.8-27b | pydata__xarray-4629 | yes | ✅ | 5 | 7 | 11,731 | 399 | 2,811 | 589 | 50.7 |
 | qwen/qwen3.8-27b | sympy__sympy-14711 | no | ❌ | 30 | 64 | 81,690 | 2,137 | 4,311 | 1,253 | 721.6 |
 | qwen/qwen3.8-27b | sympy__sympy-23534 | yes | ✅ | 14 | 32 | 42,491 | 928 | 5,710 | 618 | 380.2 |

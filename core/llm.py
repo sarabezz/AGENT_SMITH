@@ -11,8 +11,13 @@ from openai import (
     RateLimitError,
 )
 
-# Temporary errors worth retrying (rate limit, network, server hiccups)
-RETRYABLE_ERRORS = (RateLimitError, APITimeoutError, APIConnectionError, InternalServerError)
+class EmptyResponseError(Exception):
+    """The provider answered, but with no choices at all (seen with overloaded free models)."""
+
+
+# Temporary errors worth retrying (rate limit, network, server hiccups, empty answers)
+RETRYABLE_ERRORS = (RateLimitError, APITimeoutError, APIConnectionError, InternalServerError,
+                    EmptyResponseError)
 MAX_WAIT_SECONDS = 30.0         # exponential backoff never waits longer than this
 
 
@@ -87,6 +92,8 @@ class LLMClient:
                     stop=self.stop,
                     extra_body=self.extra_body,
                 )
+                if not response.choices:         # e.g. {"choices": null}: treat it as temporary
+                    raise EmptyResponseError(f"{self.model_name} returned an answer with no choices")
             except RETRYABLE_ERRORS:
                 retries += 1
                 if retries > self.max_retries:
