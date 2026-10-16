@@ -1,5 +1,0 @@
-[llm] openrouter/poolside/laguna-s-2.1:free (OPENROUTER_API_KEY) failed (RateLimitError), trying the next one
-[llm] all candidates are cooling down, waiting 20 s
-[llm] openrouter/poolside/laguna-s-2.1:free (OPENROUTER_API_KEY) failed (RateLimitError), trying the next one
-[llm] all candidates are cooling down, waiting 20 s
-[llm] openrouter/poolside/laguna-s-2.1:free (OPENROUTER_API_KEY) failed (RateLimitError), trying the next one
