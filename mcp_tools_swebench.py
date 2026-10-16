@@ -110,7 +110,7 @@ def read_file(path: str, start_line: int = 1, end_line: int = 0) -> str:
 def list_files(path: str = ".") -> str:
     """List the files and folders inside a folder of the repository (folders end with '/')."""
     path = safe_path(path)
-    result = _shell(f"ls -1Ap -- {shlex.quote(path)}")
+    result = _shell(f"ls -1p -- {shlex.quote(path)}")
     if result.returncode != 0:
         raise ValueError(f"cannot list '{path}': {result.stderr.strip()}")
     names = [n for n in result.stdout.splitlines()

@@ -1,2 +1,5 @@
-[step 1] in=1142 out=158 finish_reason='stop' retries=0 code_found=True unclosed_block=False
-[step 2] in=1341 out=51 finish_reason='stop' retries=0 code_found=True unclosed_block=False
+[llm] openrouter/nvidia/nemotron-3-ultra-550b-a55b:free (OPENROUTER_API_KEY) failed (APITimeoutError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] openrouter/nvidia/nemotron-3-ultra-550b-a55b:free (OPENROUTER_API_KEY) failed (APITimeoutError), trying the next one
+[llm] all candidates are cooling down, waiting 20 s
+[llm] openrouter/nvidia/nemotron-3-ultra-550b-a55b:free (OPENROUTER_API_KEY) failed (APITimeoutError), trying the next one
