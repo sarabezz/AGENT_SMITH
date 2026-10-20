@@ -1,5 +1,5 @@
-[llm] openrouter/nvidia/nemotron-3-ultra-550b-a55b:free (OPENROUTER_API_KEY) failed (APITimeoutError), trying the next one
+[llm] openrouter/nvidia/nemotron-3-ultra-550b-a55b:free (OPENROUTER_API_KEY) failed (EmptyResponseError), trying the next one
 [llm] all candidates are cooling down, waiting 20 s
-[llm] openrouter/nvidia/nemotron-3-ultra-550b-a55b:free (OPENROUTER_API_KEY) failed (APITimeoutError), trying the next one
+[llm] openrouter/nvidia/nemotron-3-ultra-550b-a55b:free (OPENROUTER_API_KEY) failed (EmptyResponseError), trying the next one
 [llm] all candidates are cooling down, waiting 20 s
-[llm] openrouter/nvidia/nemotron-3-ultra-550b-a55b:free (OPENROUTER_API_KEY) failed (APITimeoutError), trying the next one
+[llm] openrouter/nvidia/nemotron-3-ultra-550b-a55b:free (OPENROUTER_API_KEY) failed (EmptyResponseError), trying the next one

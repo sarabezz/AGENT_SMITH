@@ -55,6 +55,7 @@ Submitted = the agent called final_answer (`auto` = SWE-bench diff auto-submitte
 | dots-studio/dots-3-note-preview:free | 3 | 3/3 | 1/3 | 18.0 | 45,420 | 1,630 | 109.4 |
 | nvidia/nemotron-3-super-120b-a12b:free | 3 | 3/3 | 3/3 | 24.7 | 101,311 | 2,788 | 75.3 |
 | nvidia/nemotron-3-ultra-550b-a55b:free | 1 | 1/1 | 1/1 | 26.0 | 118,342 | 3,125 | 182.5 |
+| nvidia/nemotron-3.5-lightning:free | 3 | 0/3 | 0/3 | 30.0 | 79,049 | 1,885 | 90.6 |
 | qwen/qwen3.8-27b | 3 | 2/3 | 2/3 | 16.3 | 45,304 | 1,155 | 384.2 |
 
 ### Per run
@@ -71,6 +72,9 @@ Submitted = the agent called final_answer (`auto` = SWE-bench diff auto-submitte
 | nvidia/nemotron-3-super-120b-a12b:free | sympy__sympy-14711 | yes | ✅ | 28 | 28 | 129,047 | 3,617 | 8,286 | 1,830 | 98.9 |
 | nvidia/nemotron-3-super-120b-a12b:free | sympy__sympy-23534 | yes | ✅ | 28 | 30 | 102,536 | 2,500 | 5,730 | 1,326 | 86.4 |
 | nvidia/nemotron-3-ultra-550b-a55b:free | pydata__xarray-4629 | yes | ✅ | 26 | 26 | 118,342 | 3,125 | 8,058 | 5,332 | 182.5 |
+| nvidia/nemotron-3.5-lightning:free | pydata__xarray-4629 | no | ❌ | 30 | 31 | 100,309 | 2,945 | 5,831 | 1,953 | 92.9 |
+| nvidia/nemotron-3.5-lightning:free | sympy__sympy-14711 | no | ❌ | 30 | 33 | 68,831 | 1,355 | 3,265 | 989 | 129.5 |
+| nvidia/nemotron-3.5-lightning:free | sympy__sympy-23534 | no | ❌ | 30 | 30 | 68,006 | 1,354 | 3,520 | 1,051 | 49.3 |
 | qwen/qwen3.8-27b | pydata__xarray-4629 | yes | ✅ | 5 | 7 | 11,731 | 399 | 2,811 | 589 | 50.7 |
 | qwen/qwen3.8-27b | sympy__sympy-14711 | no | ❌ | 30 | 64 | 81,690 | 2,137 | 4,311 | 1,253 | 721.6 |
 | qwen/qwen3.8-27b | sympy__sympy-23534 | yes | ✅ | 14 | 32 | 42,491 | 928 | 5,710 | 618 | 380.2 |

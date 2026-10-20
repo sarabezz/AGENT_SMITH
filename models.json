@@ -34,6 +34,11 @@
       "provider": "openrouter",
       "model": "dots-studio/dots-3-note-preview:free",
       "extra_body": {"reasoning": {"enabled": false}}
+    },
+    {
+      "provider": "openrouter",
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "extra_body": {"reasoning": {"enabled": false}}
     }
   ]
 }
