@@ -22,7 +22,8 @@ def _docker(*args: str, timeout: float = COMMAND_TIMEOUT) -> subprocess.Complete
 class TaskContainer:
     """Use it with `with`: the container is removed at the end, even after an error.
 
-    The container is named after the task (e.g. sympy__sympy-23534): the exam cleans up
+    The container is named after the task 
+    (e.g. sympy__sympy-23534): the exam cleans up
     containers by that name, and only one container per task can exist at a time.
     """
 

@@ -63,9 +63,14 @@ def result_files(results_dir: Path) -> list[Path]:
                   if not p.name.endswith(VALIDATION_SUFFIX))
 
 
+def cache_path(result_file: Path) -> Path:
+    """Where the moulinette verdict of one run is cached: <task>.validation.json, next to it."""
+    return result_file.with_name(result_file.stem + VALIDATION_SUFFIX)
+
+
 def cached_verdict(result_file: Path) -> bool | None:
     """The cached moulinette verdict, if it is newer than the solution file."""
-    cache = result_file.with_name(result_file.stem + VALIDATION_SUFFIX)
+    cache = cache_path(result_file)
     if not cache.exists() or cache.stat().st_mtime < result_file.stat().st_mtime:
         return None
     try:
@@ -90,7 +95,7 @@ def validate(benchmark: str, task_file: Path, result_file: Path, moulinette: Pat
         print(f"  no verdict for {result_file.name}: {lines[-1:] or 'no output'}", file=sys.stderr)
         return None
     correct = "PASSED" in verdict_line
-    cache = result_file.with_name(result_file.stem + VALIDATION_SUFFIX)
+    cache = cache_path(result_file)
     cache.write_text(json.dumps({"correct": correct, "detail": verdict_line.strip()}))
     return correct
 

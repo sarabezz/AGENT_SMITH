@@ -120,9 +120,43 @@ The same agent, prompt and tools for every model. Only the model changes.
 
 ---
 
-## 3. Ablation
+## 3. Ablation: does the `run_tests` tool help?
 
-*(to write: what changed, what was measured, what it shows)*
+**Question:** does giving the agent a tool that runs the task's real tests make it better?
+
+**One change only.** Same model (qwen3.8-27b), same 5 MBPP tasks, same prompt and limits.
+The only difference:
+
+| | With tools | Without tools (`--no-tools`) |
+|---|---|---|
+| MCP server | started | not started |
+| How the agent checks its code | calls `run_tests(...)`: the task's own tests run in a separate sandbox | writes its **own** `assert` lines and reads the result |
+
+**Results** (from section 2.2):
+
+| | With tools | Without tools | Change |
+|---|---|---|---|
+| Correct | 5/5 | 5/5 | same |
+| Avg iterations | **1.2** | 2.4 | **half** |
+| Avg input tokens | **737** | 1,475 | **half** |
+| Avg output tokens | **112** | 236 | **half** |
+
+**Why half?** With the tool, the agent can test **and** submit in the same code block:
+if the tests pass, `final_answer` runs in that same step, so most tasks finish in **1 step**.
+Without the tool, it needs one step to write the code and its own checks, then a second step
+to read the result and submit. And since the whole history is sent again at every step,
+twice the steps means about twice the tokens.
+
+**What it shows:** on these tasks, the tool did not change *accuracy* (both reach 5/5),
+but it made the agent **twice as efficient** (fewer steps, fewer tokens).
+
+**Notes:**
+
+- The average *time* (1.2 s vs 9.4 s) is not a fair comparison: two of the no-tools runs
+  (tasks 4 and 6) took about 21 s each, most likely because of waits for Groq's per-minute
+  limit, not because of the tool.
+- 5 easy tasks and 1 model are a small sample. Both variants solved everything, so this
+  ablation cannot show whether the tool improves accuracy on *harder* tasks.
 
 ## 4. Findings and conclusions
 
