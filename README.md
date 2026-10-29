@@ -84,3 +84,6 @@ Agent Smith is made of **four separate programs** that talk to each other:
 | | `mcp_tools_mbpp.py`, `mcp_tools_swebench.py` | the two MCP servers |
 | | `core/container.py` | starts and always removes the SWE-bench Docker container |
 | **Benchmark** | `run_benchmark.py`, `make_report.py` | runs the model × task grid; validates and builds the tables |
+| | `mcp_tools_mbpp.py`, `mcp_tools_swebench.py` | the two MCP servers |
+| | `core/container.py` | starts and always removes the SWE-bench Docker container |
+| **Benchmark** | `run_benchmark.py`, `make_report.py` | runs the model × task grid; validates and builds the tables |
