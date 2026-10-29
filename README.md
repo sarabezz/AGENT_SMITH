@@ -435,6 +435,9 @@ My own work:
   (for example, catching `SystemExit` so the sandbox keeps the model's variables).
 - **Benchmark analysis**: I wrote the findings in my own words first; AI only polished the
   wording.
+- **Cost study**: I decided to add the cost analysis (cost per task and per solved task, with real
+  paid prices), which was not required, because in a real project the cost of running an agent
+  matters as much as its results.
 
 ## Project Info
 
