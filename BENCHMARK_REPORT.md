@@ -236,6 +236,10 @@ solution with the real tests is the only way to know whether a task was really s
 
 ## 6. Cost: what this benchmark would cost with paid models
 
+This section was not required. It was added to look at the project as it would be in the real
+world: choosing a model is not only about its results, but also about **what it costs to get
+them**.
+
 Every run used free tiers, so the real cost was **0**. This section estimates what the same runs
 would cost on the **paid** versions of the models, using the providers' public prices
 (checked on October 29, 2026, in US dollars, as the providers publish them).
