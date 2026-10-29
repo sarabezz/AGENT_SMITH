@@ -231,6 +231,9 @@ class SandboxRuntime:
         except MemoryError:
             buffer.write(f"MemoryError: the code exceeded the sandbox memory limit "
                          f"of {self.config.max_memory_mb} MB\n")
+        except SystemExit as exc:
+            buffer.write(f"SystemExit: the code tried to exit (code {exc.code}); "
+                         "exiting is not allowed, the sandbox keeps running\n")
         except Exception as exc:
             buffer.write(self._format_error(exc))
         finally:
