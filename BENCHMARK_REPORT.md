@@ -160,12 +160,124 @@ but it made the agent **twice as efficient** (fewer steps, fewer tokens).
 
 ## 4. Findings and conclusions
 
-*(to write together)*
+### 4.1 Submitted is not the same as correct
+
+dots called `final_answer` in **3/3** SWE-bench tasks, but only **1/3** passed the hidden test.
+The model *believed* it had solved the issue, and it was wrong twice. An agent's own claim of
+success can never be trusted: every solution must be checked with the real tests, in a clean
+environment. That is why every run in this report is validated with the official grader.
+
+### 4.2 A bigger model is not automatically a better agent
+
+nemotron-3-super (120B) solved **3/3** tasks and was the fastest model (**75 s** per task on
+average). nemotron-3-ultra (550B) timed out on two different days and finished only **1** of
+its 3 runs (that one was correct). For an agent, what matters is not only the size of the
+model, but whether it answers **reliably**: a free endpoint that is often overloaded is not
+usable, however big the model behind it is.
+
+### 4.3 Small models explore without deciding
+
+nemotron-3.5-lightning used all **30 iterations** on every task and **never edited the code**
+(**0/3**). Like a rat in a maze, it kept searching and reading files without ever committing to
+a fix. A small, fast model can navigate a repository, but probably lacks the reasoning needed
+to decide *what* to change and *when* to stop exploring.
+
+### 4.4 Tools make the agent more efficient, not more accurate (ablation)
+
+With the `run_tests` tool, qwen solved the 5 MBPP tasks in **half the iterations** (1.2 vs 2.4)
+and **half the tokens** (737 vs 1,475). With the tool, the agent can test its code and submit it
+in the **same** step; without it, it needs one step to run its own checks and another one to
+submit. The final accuracy did not change (5/5 in both cases): the tool changed the *speed* and
+the *cost*, not the result.
+
+### 4.5 Reading costs much more than writing
+
+nemotron-3-super used **101,311** input tokens but only **2,788** output tokens per task on
+average. The model only writes a short reply each step, but the agent sends it the **whole
+conversation** every time: the instructions, the issue, and every previous reply and
+observation. Without control, each request would keep growing. Context compaction (older
+observations shortened to 400 characters, the last 2 kept in full) kept the **biggest single
+request** around **3,500–8,000 tokens**, even after 30 steps.
+
+### 4.6 A slow run is not necessarily a bad model
+
+qwen (Groq) took **384 s** per task on average, five times slower than nemotron-3-super, but it
+still solved 2/3 tasks. On sympy-14711 it made **64 requests** for only **30 iterations**: the
+34 extra requests were attempts rejected by Groq's free per-minute token limit (HTTP 429), each
+followed by a 20 s cooldown before retrying. Most of its time was spent **waiting for the rate
+limit**, not thinking.
+
+### 4.7 Conclusion
+
+With free models only, the agent solved **8 of 15** real GitHub issues (53%), and
+nemotron-3-super solved all three. The results show that the agent's design matters as much as
+the model: tools halve the work, compaction keeps the cost under control, and validating every
+solution with the real tests is the only way to know whether a task was really solved.
 
 ## 5. Limitations
 
-*(to write)*
+- **Few tasks.** Each model ran only **3** SWE-bench tasks, so a single task is worth 33% of its
+  score. Differences of one task (for example cohere 2/3 vs dots 1/3) may be luck rather than a
+  real difference between the models. Large benchmarks use hundreds of tasks.
+- **One run per cell.** LLMs sample their replies with some randomness: the same prompt can lead
+  the agent to read different files and try a different fix. Running each cell several times and
+  averaging would give more reliable numbers.
+- **Free tiers.** Rate limits and overloaded endpoints affected the results: the *time* column
+  includes waiting for rate limits (see 4.6), so it compares the providers' limits as much as the
+  models. The free tiers also decided which models could be tested (gemma and laguna had to be
+  replaced, and ultra finished only one run).
+- **A narrow ablation.** The ablation used one model and five easy MBPP tasks, which were solved
+  with and without the tool. It shows that the tool makes the agent more efficient, but it cannot
+  show whether the tool improves *accuracy* on harder tasks, or whether other models would behave
+  the same way.
+- **Reasoning disabled.** Reasoning was turned off on every model, to compare all of them under
+  the same conditions and to keep the output within the token budget. Models designed to reason
+  before answering may perform worse here than they would with reasoning enabled.
 
-## 6. Cost
+## 6. Cost: what this benchmark would cost with paid models
 
-*(optional: € per run if these models were paid)*
+Every run used free tiers, so the real cost was **0**. This section estimates what the same runs
+would cost on the **paid** versions of the models, using the providers' public prices
+(checked on October 29, 2026, in US dollars, as the providers publish them).
+
+### 6.1 Prices
+
+| Model | Provider (paid) | Input (per 1M tokens) | Output (per 1M tokens) |
+|---|---|---|---|
+| nemotron-3-super-120b | OpenRouter | $0.08 | $0.45 |
+| qwen3.8-27b | Groq (the provider used here) | $0.80 | $4.00 |
+| nemotron-3-ultra-550b | OpenRouter (DeepInfra) | $0.50 | $2.20 |
+| nemotron-3.5-lightning | OpenRouter | $0.025 | $0.12 |
+| north-mini-code (cohere) | — | no paid version found | |
+| dots-3-note-preview | — | no paid version found (free preview only) | |
+
+### 6.2 Cost per task and per solved task (SWE-bench)
+
+Cost per task = average input tokens × input price + average output tokens × output price
+(token averages from section 2.1).
+
+| Model | Cost per task | Tasks solved | Cost per **solved** task |
+|---|---|---|---|
+| nemotron-3-super-120b | **$0.0094** | 3/3 | **$0.0094** |
+| qwen3.8-27b (Groq) | $0.0409 | 2/3 | $0.0613 |
+| nemotron-3-ultra-550b | $0.0660 | 1/1 | $0.0660 |
+| nemotron-3.5-lightning | $0.0022 | 0/3 | — (nothing solved) |
+
+**Example (nemotron-3-super):** 101,311 input tokens × $0.08/1M = $0.0081, plus
+2,788 output tokens × $0.45/1M = $0.0013 → **$0.0094 per task**.
+
+The whole SWE-bench grid of these four models (10 runs) would cost about **$0.22**.
+
+### 6.3 What the costs show
+
+- **The best model was also the cheapest per solution.** nemotron-3-super solved every task for
+  less than one cent each: about **6–7 times cheaper** per solved task than qwen on Groq or ultra.
+- **The cheapest model per task was the most expensive per result.** lightning costs only $0.0022
+  per task, but it solved nothing, so every cent spent on it was wasted. The useful number is the
+  cost **per solved task**, not per task.
+- **Input tokens drive the cost.** For nemotron-3-super, input is about 87% of the cost per task,
+  even though input is the cheaper token type: this is the effect of resending the whole history
+  at every step (section 4.5), and the reason why context compaction also saves money.
+
+*Prices change often and differ between providers; these numbers are an order of magnitude, not an
+exact bill. Rejected requests (HTTP 429) are not included, since providers do not charge them.*
