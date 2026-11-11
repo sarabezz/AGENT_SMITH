@@ -23,3 +23,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["core", "agent_mbpp", "agent_swebench"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
